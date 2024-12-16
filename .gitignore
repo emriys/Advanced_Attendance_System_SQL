@@ -1,0 +1,7 @@
+# Ignore database files
+*.db
+*.sqlite3
+
+# Ignore migration files
+migrations/
+

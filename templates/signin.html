@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Sign-In Attendance</title>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" type="text/css" href="{{url_for('static', filename='signupstyle.css')}}">
+
+	<!-- <link rel="stylesheet" type="text/css" href="/static/signupstyle.css"> -->
+
+</head>
+
+<body>
+	<header>
+		<div class="heading">
+			<img src="{{url_for('static', filename='LOGO.jpg')}}" alt="NIESAT Logo" width="80" height="80" />
+			<h2> Mark Attendance Register</h2>
+		</div>
+	</header>
+	<main>
+
+
+		<form action="{{ url_for('routes.signin') }}" method="POST">
+			<h2>Sign-In for Today</h2>
+
+			<div class="regErrorMsg">{{regErrorMsg}} </div>
+
+			<label for="name">First Name <span class="required">*</span></label>
+			<input type="text" id="name" name="fname" required>
+
+			<label for="name">Middle Name </label>
+			<input type="text" id="name" name="mname" optional>
+
+			<label for="name">Last Name <span class="required">*</span></label>
+			<input type="text" id="name" name="sname" required>
+
+			<label for="statecode">StateCode <span class="required">*</span></label>
+			<input type="text" id="username" name="statecode" maxlength="11" minlength="1"
+				pattern="[Kk][Ww]/\d{2}[a-cA-C]/\d{4}" title="Must contain correct and complete statecode: KW/XXX/XXXX"
+				required> <!--"-->
+
+
+			<button type="submit">Sign-In</button>
+			<p>Already signed in? <a href="{{ url_for('routes.history') }}">Check Attendance History</a></p>
+		</form>
+	</main>
+
+</body>
+
+</html>
