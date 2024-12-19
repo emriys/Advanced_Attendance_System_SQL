@@ -15,7 +15,8 @@
 <body>
 	<header>
 		<div class="heading">
-			<img src="{{url_for('static', filename='LOGO.jpg')}}" alt="NIESAT Logo" width="80" height="80" />
+			<a href="{{ url_for('routes.index')}}"><img src="{{url_for('static', filename='LOGO.jpg')}}"
+					alt="NIESAT Logo" width="80" height="80" /></a>
 			<h2> Mark Attendance Register</h2>
 		</div>
 	</header>
@@ -43,6 +44,7 @@
 
 
 			<button type="submit">Sign-In</button>
+			<p>New Member? <a href="{{ url_for('routes.register') }}">Register</a></p>
 			<p>Already signed in? <a href="{{ url_for('routes.history') }}">Check Attendance History</a></p>
 		</form>
 	</main>

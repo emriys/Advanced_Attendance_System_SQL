@@ -1,21 +1,24 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, time
 from sqlalchemy import Date
+from flask_login import UserMixin
 
 db = SQLAlchemy()
 
 
-class Users(db.Model):
+class Users(db.Model, UserMixin):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50), nullable=False)
     middle_name = db.Column(db.String(50))
     last_name = db.Column(db.String(50), nullable=False)
+    gender = db.Column(db.String(10), nullable=False, server_default="N/A")
+    local_gov = db.Column(db.String(20), nullable=False, server_default="N/A")
     state_code = db.Column(db.String(10), unique=True, nullable=False)
     registration_date = db.Column(db.Date, nullable=False, default=datetime.now().date)
 
-    # Define the relationship with AttendanceLog. Cascade deletes Attendance Logs 
+    # Define the relationship with AttendanceLog. Cascade deletes Attendance Logs
     # automatically once a user is deleted
     attendance_logs = db.relationship('AttendanceLog', back_populates='user', lazy=True, cascade="all, delete-orphan")
 

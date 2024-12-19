@@ -1,4 +1,4 @@
-from flask import Flask,request,Response,render_template,session,redirect,url_for,jsonify,send_file,flash, Blueprint
+from flask import Flask,request,Response,render_template,session,redirect,url_for,jsonify,send_file,flash,Blueprint
 from flask_session import Session
 import pandas as pd
 from datetime import datetime,time,timedelta
@@ -6,6 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy.exc import IntegrityError
 from models import *
+from blueprints.forms import *
 import csv
 from io import BytesIO
 from fpdf import FPDF
@@ -35,6 +36,7 @@ def admin_required(f):
 # ---------------- ROUTES ---------------- #
 
 @routes.route('/')
+@routes.route('/home')
 def index():
     return render_template("index.html")
 
@@ -44,8 +46,52 @@ def history():
     return render_template ("history.html")
     # return ("successful")
 
+@routes.route('/register', methods=['GET','POST'])
+def register():
+    form = MemberRegisterForm()
+    if form.validate_on_submit():
+        print(form.state_code.data.upper())
+        print(form.first_name.data)
+        print(form.middle_name.data)
+        print(form.last_name.data)
+        print(form.gender.data)
+        print(form.local_gov_area.data)
+        user = Users.query.filter_by(state_code=form.state_code.data.upper()).first()
+        if user :
+            flash('User already exists','danger')
+            print('User exists 2')
+        else:
+            user_data = [{
+                'first_name':form.first_name.data.capitalize(),
+                'middle_name':form.middle_name.data.capitalize(),
+                'last_name':form.last_name.data.upper(),
+                'gender':form.gender.data,
+                'local_gov':form.local_gov_area.data.capitalize(),
+                'state_code':form.state_code.data.upper()
+            }]
+            
+            new_user = Users(
+                first_name=form.first_name.data.capitalize(),
+                middle_name=form.middle_name.data.capitalize(),
+                last_name=form.last_name.data.upper(),
+                gender=form.gender.data,
+                local_gov=form.local_gov_area.data.capitalize(),
+                state_code=form.state_code.data.upper(),
+                registration_date=datetime.now().date()
+            )
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Registration successful', 'success')  # 'success' indicates success
+            print("New User Added.")
+            # return redirect(url_for('routes.signin'))
+        
+    return render_template('register.html', title='Register', form=form)
+
 @routes.route('/signin', methods=['GET', 'POST'])
-def signin():   
+def signin():
+    # Sign in clicked 
+    # colllect details 
+    # check if user registered 
     if request.method == "POST":
         # Define attendance time ranges
         settings = AdminSettings.query.first()
@@ -178,20 +224,15 @@ def admin():
         admin_settings = AdminSettings.query.first()
         
         if not admin_settings:
-            return jsonify({'error': 'Admin settings not found'}), 500
+            return jsonify({'error': 'Server Error.'}), 500
         
         # Verify the username and password
         if username == admin_settings.admin_username and check_password_hash(admin_settings.admin_password, password):
             session.permanent = True
             session['admin_logged_in'] = True
-            flash("Login successful!", "success")
-            return redirect(url_for('routes.admindash'))
+            return jsonify({"success":True, "message":"Login successful!"}), 200  # Response with success status
         else:
-            flash("Invalid credentials!", "danger")
-            return jsonify(success=False), 401  # Response with failure status and 401 error
-        #     return jsonify(success=True), 200  # Response with success status
-        # else:
-        #     return jsonify(success=False), 401  # Response with failure status and 401 error
+            return jsonify({"success":False, "message":"Invalid credentials!"}), 200  # Response with failure status
 
     return render_template('adminlogin.html')
 
@@ -546,7 +587,7 @@ def check_user_reg_exists(statecode, fname, mname, sname):
     # Normalize input for consistent comparison
     statecode = statecode.strip().upper()
     fname = fname.strip().capitalize()
-    mname = mname.strip().capitalize() if mname else "-"
+    mname = mname.strip().capitalize() if mname else ""
     sname = sname.strip().upper()
     try:
         # Query for the user

@@ -1,11 +1,59 @@
 from flask import Blueprint, request, jsonify
-from models import AdminSettings, db
+from models import AdminSettings, db, Users
 from datetime import datetime
 import bcrypt
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField,SubmitField,FloatField,DateField,SelectField
+from wtforms.validators import DataRequired,Length,EqualTo,ValidationError,NumberRange,Regexp
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Create a Blueprint
 forms_bp = Blueprint('forms', __name__)
+
+
+class MemberRegisterForm(FlaskForm):
+    first_name = StringField('First Name',
+                             validators=[DataRequired(),Length(min=2,max=30)
+                                        ])
+    middle_name = StringField('Middle Name',
+                              validators=[Length(min=0,max=30)])
+    last_name = StringField('Last Name',
+                            validators=[DataRequired(), Length(min=2,max=30)])
+    local_gov_area = SelectField('Local Goverment Area',
+                                 choices=[('','Select LGA'),
+                                          ('ilorin-west','ILORIN WEST'),
+                                          ('ilorin-south', 'ILORIN SOUTH')],
+                                 validators=[DataRequired()],
+                                  render_kw={'class':'form-select','id':'local_gov'})
+    gender = SelectField('Gender',
+                                choices=[('','Select Gender'),
+                                        ('M','Male'),
+                                        ('F', 'Female')],
+                                validators=[DataRequired()],
+                                render_kw={'class':'form-select'})
+    state_code = StringField('State Code',
+                             validators=[
+                                 DataRequired(),
+                                 Length(min=2,max=11),
+                                 Regexp(
+                                     regex=r'^[Kk][Ww]/\d{2}[a-cA-C]/\d{4}$',
+                                     message="State code must follow the format: KW/XX/A/XXXX"
+                                )
+                            ])
+    submit = SubmitField('Register',
+                         render_kw={'class': 'button', 'type':'submit'})
+    
+    def validate_user(self,first_name,last_name,statecode):
+        user = Users.query.filter_by(first_name=first_name,
+                                     last_name=last_name,
+                                     state_code=statecode
+                                     ).first()
+        if user:
+            print('Use exists 1')
+            raise ValidationError(f"Member with statecode {state_code} already exists")
+
+#----------------- ADMIN SETTINGS FORMS --------------------
+
 
 @forms_bp.route('/change_login', methods=['GET', 'POST'])
 def change_login():
