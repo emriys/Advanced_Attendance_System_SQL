@@ -20,35 +20,44 @@
 			<h2> Mark Attendance Register</h2>
 		</div>
 	</header>
+
 	<main>
-
-
-		<form action="{{ url_for('routes.signin') }}" method="POST">
+		<form action="{{ url_for('routes.signin') }}" class="form" method="POST">
 			<h2>Sign-In for Today</h2>
 
-			<div class="regErrorMsg">{{regErrorMsg}} </div>
+			<div class="msg-area"></div>
+			<div>{{ regErrorMsg }}</div>
 
-			<label for="name">First Name <span class="required">*</span></label>
-			<input type="text" id="name" name="fname" required>
+			{{ form.hidden_tag() }}
 
-			<label for="name">Middle Name </label>
-			<input type="text" id="name" name="mname" optional>
+			<div>
+				{{ form.last_name.label }}
+				{{ form.last_name}}
+				{% for error in form.last_name.errors %}
+				<p class="error">{{ error }}</p>
+				{% endfor %}
+			</div>
 
-			<label for="name">Last Name <span class="required">*</span></label>
-			<input type="text" id="name" name="sname" required>
+			<div>
+				{{ form.state_code.label }}
+				{{ form.state_code(
+				pattern="^[Kk][Ww]/\d{2}[a-cA-C]/\d{4}$",
+				title="Must contain correct and complete state code: KW/XX/XXXX"
+				) }}
+				{% for error in form.state_code.errors %}
+				<p class="error">{{ error }}</p>
+				{% endfor %}
+			</div>
+			
+			{{ form.submit (class_="button") }}
+			
 
-			<label for="statecode">StateCode <span class="required">*</span></label>
-			<input type="text" id="username" name="statecode" maxlength="11" minlength="1"
-				pattern="[Kk][Ww]/\d{2}[a-cA-C]/\d{4}" title="Must contain correct and complete statecode: KW/XXX/XXXX"
-				required> <!--"-->
-
-
-			<button type="submit">Sign-In</button>
 			<p>New Member? <a href="{{ url_for('routes.register') }}">Register</a></p>
 			<p>Already signed in? <a href="{{ url_for('routes.history') }}">Check Attendance History</a></p>
 		</form>
 	</main>
 
 </body>
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
 </html>

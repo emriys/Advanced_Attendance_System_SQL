@@ -34,11 +34,11 @@
                     <h3>Account Details</h3>
 
                     <p class="info-label">BANK NAME</p>
-                    <p class="info-value">Paystack-Titan</p> <!--{{ bankname }}-->
+                    <p class="info-value">{{ bankname }}</p> <!--{{ bankname }}-->
 
                     <p class="info-label">ACCOUNT NUMBER</p>
                     <div class="copy-container">
-                        <p class="info-value" id="account-number">9987311198</p> <!--{{ acctnumber }}-->
+                        <p class="info-value" id="account-number">{{ acctnum }}</p> <!--{{ acctnumber }}-->
                         <button class="copy-button" onclick="copyToClipboard('account-number')">
                             <!-- <span>Copy</span> -->
                             <!-- <img src="https://img.icons8.com/material-outlined/24/000000/copy.png" alt="Copy Icon"> -->
@@ -47,6 +47,9 @@
                                 alt="Copy Icon">
                         </button>
                     </div>
+
+                    <p class="info-label">ACCOUNT NAME</p>
+                    <p class="info-value">{{ acctname }}</p>
 
                     <p class="info-label">AMOUNT</p>
                     <div class="copy-container">
@@ -93,14 +96,7 @@
 
                     // Add hidden input fields for each parameter
                     const params = {
-                        fname: "{{ fname }}",
-                        mname: "{{ mname }}",
-                        sname: "{{ sname }}",
-                        statecode: "{{ statecode }}",
-                        signInTime: "{{ signInTime }}",
-                        signInTD: "{{ signInTD }}",
-                        client_ip: "{{ client_ip }}",
-                        status: data.status
+                        statecode: "{{ statecode }}"
                     };
 
                     // Iterate through the params and add to form
@@ -130,9 +126,7 @@
     <script>
         // Copy to clipboard function
         number = document.getElementById('account-number').innerHTML
-        console.log(number)
         amount = document.getElementById('amount').innerHTML
-        console.log(amount)
 
         function copyToClipboard(elementId) {
             const text = document.getElementById(elementId).textContent;

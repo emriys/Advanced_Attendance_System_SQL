@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>Sign-In Attendance</title>
+    <title>Register New Member</title>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,14 +19,15 @@
     </header>
     <main>
 
-        <form action="" method="POST">
+        <form action="{{ url_for('routes.register') }}" class="form" method="POST">
             <h2>Register</h2>
 
-            {% include 'flash_messages.html' %}
+            <div class="msg-area"></div>
 
             {{ form.hidden_tag() }}
+            
             <div>
-                {{ form.first_name.label }} 
+                {{ form.first_name.label }}
                 {{ form.first_name }}
                 {% for error in form.first_name.errors %}
                 <p class="error">{{ error }}</p>
@@ -34,51 +35,54 @@
             </div>
 
             <div>
-                {{ form.middle_name.label }} 
+                {{ form.middle_name.label }}
                 {{ form.middle_name }}
             </div>
 
             <div>
-                {{ form.last_name.label }} 
+                {{ form.last_name.label }}
                 {{ form.last_name}}
                 {% for error in form.last_name.errors %}
-                    <p class="error">{{ error }}</p>
+                <p class="error">{{ error }}</p>
                 {% endfor %}
             </div>
 
             <div>
-                {{ form.gender.label }} 
+                {{ form.gender.label }}
                 {{ form.gender }}
                 {% for error in form.gender.errors %}
-                    <p class="error">{{ error }}</p>
+                <p class="error">{{ error }}</p>
                 {% endfor %}
             </div>
 
             <div>
-                {{ form.local_gov_area.label }} 
+                {{ form.local_gov_area.label }}
                 {{ form.local_gov_area }}
                 {% for error in form.local_gov_area.errors %}
-                    <p class="error">{{ error }}</p>
+                <p class="error">{{ error }}</p>
                 {% endfor %}
             </div>
 
             <div>
                 {{ form.state_code.label }}
                 {{ form.state_code(
-                    pattern="^[Kk][Ww]/\d{2}[a-cA-C]/\d{4}$",
-                    title="Must contain correct and complete state code: KW/XX/XXXX"
+                pattern="^[Kk][Ww]/\d{2}[a-cA-C]/\d{4}$",
+                title="Must contain correct and complete state code: KW/XX/XXXX"
                 ) }}
                 {% for error in form.state_code.errors %}
-                    <p class="error">{{ error }}</p>
+                <p class="error">{{ error }}</p>
                 {% endfor %}
             </div>
 
             <div>
-                <button type="submit">{{ form.submit.label }} </button>
+                {{ form.submit (class_="button") }}
             </div>
+
             <p>Already a member? <a href="{{ url_for('routes.signin') }}">Mark Attendance</a></p>
         </form>
     </main>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
 </body>
 

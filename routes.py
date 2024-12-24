@@ -50,40 +50,31 @@ def history():
 def register():
     form = MemberRegisterForm()
     if form.validate_on_submit():
-        print(form.state_code.data.upper())
-        print(form.first_name.data)
-        print(form.middle_name.data)
-        print(form.last_name.data)
-        print(form.gender.data)
-        print(form.local_gov_area.data)
         user = Users.query.filter_by(state_code=form.state_code.data.upper()).first()
         if user :
-            flash('User already exists','danger')
-            print('User exists 2')
+            return jsonify({'success':False,"message":'User already exists'})
         else:
-            user_data = [{
+            user_data = {
                 'first_name':form.first_name.data.capitalize(),
                 'middle_name':form.middle_name.data.capitalize(),
                 'last_name':form.last_name.data.upper(),
-                'gender':form.gender.data,
+                'gender':form.gender.data.capitalize(),
                 'local_gov':form.local_gov_area.data.capitalize(),
                 'state_code':form.state_code.data.upper()
-            }]
-            
-            new_user = Users(
-                first_name=form.first_name.data.capitalize(),
-                middle_name=form.middle_name.data.capitalize(),
-                last_name=form.last_name.data.upper(),
-                gender=form.gender.data,
-                local_gov=form.local_gov_area.data.capitalize(),
-                state_code=form.state_code.data.upper(),
-                registration_date=datetime.now().date()
-            )
-            db.session.add(new_user)
-            db.session.commit()
-            flash('Registration successful', 'success')  # 'success' indicates success
-            print("New User Added.")
-            # return redirect(url_for('routes.signin'))
+            }
+            print(user_data['first_name'])
+            print(user_data['middle_name'])
+            print(user_data['last_name'])
+            print(user_data['gender'])
+            print(user_data['local_gov'])
+            print(user_data['state_code'])
+        
+            confirm = check_user_reg_exists(user_data=user_data)
+            if confirm :
+                print("New User Added 2.")
+                return jsonify({'success':True,"message":'Registration successful'})
+            else :
+                return jsonify({'success':False,"message":'Server Error: Could not add user'})
         
     return render_template('register.html', title='Register', form=form)
 
@@ -92,7 +83,8 @@ def signin():
     # Sign in clicked 
     # colllect details 
     # check if user registered 
-    if request.method == "POST":
+    form = SigninForm()
+    if request.method == "POST" and form.validate_on_submit():
         # Define attendance time ranges
         settings = AdminSettings.query.first()
         early_start = settings.early_arrival_start
@@ -101,112 +93,82 @@ def signin():
         print(early_start)
         print(late_start)
         print(late_end)
-
-        fname = request.form['fname'].strip().capitalize() # First name
-        mname = request.form['mname'].strip().capitalize() # Middle name
-        sname = request.form['sname'].strip().upper() # Last name
-        statecode = request.form['statecode'].strip().upper()
-        print(fname)
-        print(mname)
-        print(sname)
+        
+        last_name = form.last_name.data.upper() # Last name
+        statecode = form.state_code.data.upper()
+        print(last_name)
         print(statecode)
         
-        signInTD = datetime.now().strftime('%Y-%m-%d %H:%M:%S')[:-3] # SignIn Date and Time
-        signInTime = datetime.now().strftime('%H:%M:%S') # SignIn Time
-        signInD = datetime.now().strftime('%Y-%m-%d') # SignIn Date
-        
-        client_ip = get_client_IP()
+        confirm_reg = check_user_reg_exists(statecode=statecode, last_name=last_name)
+        if not confirm_reg :
+            return jsonify({'success':False,"message":'Not A Registered Member'})
+        else :
+            # Check if user attendance is registered already
+            attendanceStatus = check_user_attendance_exists(statecode)
 
-        # Check if user attendance is registered already
-        attendanceStatus = check_user_attendance_exists(statecode)
-        # regStatus = check_user_reg_exists(statecode, fname, mname, sname)
-        if attendanceStatus != "":
-            return render_template("signin.html", regErrorMsg=attendanceStatus)
-            
-        else:
-            # If late, handle late sign-in
-            current_time = datetime.now().time()
-            # if late_start <= current_time <= late_end:
-            if late_end <= current_time:
-            # if current_time <= late_start:
-            # if late_start <= current_time:
-                request_type = "Late sign-in"
-                amount = settings.lateness_fine
-                status = "Pending"
+            if attendanceStatus != "":
+                return jsonify({'success':False,"message":attendanceStatus})
                 
-                # Check if user already in late list
-                late_status = check_latefile(statecode)
-                if not late_status:
-                    new_late_log = LateLog(
-                        transaction_date=datetime.now().date(),
-                        state_code=statecode,
-                        request_type=request_type,
-                        amount=amount,
-                        status=status
-                    )
-                    db.session.add(new_late_log)
-                    db.session.commit()
-                return payment(fname, mname, sname, statecode, signInTime, signInTD, client_ip)
-            
-            # elif late_end <= current_time:
-            elif early_start <= current_time < late_start:
-                
-                # Check if user is already registered in database or add user
-                user = check_user_reg_exists(statecode, fname, mname, sname)
-                # Regular sign-in (early sign-in)
-                confirm_attendance = record_attendance(user)
-                # if result["success"]:
-                #     confirm_attendance = record_attendance(result["user"])
-                # else:
-                #     regErrorMsg = result["message"]
-                #     return render_template ("signin.html", regErrorMsg=regErrorMsg)
-    
-                if confirm_attendance:
-                    return render_template("thankyouregister.html")
-                else:
-                    return """<h1>Server Error!</h1> <h4><p>Failed to log attendance</p></h4>""", 500
-            
             else:
-                regErrorMsg = "Sign-in time elapsed or not yet reached!"
-                return render_template ("signin.html", regErrorMsg=regErrorMsg)   
-    
-    return render_template("signin.html")
+                # If late, handle late sign-in
+                current_time = datetime.now().time()
+                
+                # if late_start <= current_time <= late_end:
+                # if late_end <= current_time:
+                # if current_time <= late_start:
+                if late_start <= current_time:
+                    amount = settings.lateness_fine
+                    
+                    # Check if user already in late list
+                    late_status = check_latefile(statecode)
+                    if not late_status:
+                        new_late_log = LateLog(
+                            transaction_date=datetime.now().date(),
+                            state_code=statecode,
+                            request_type="Late Sign-In",
+                            amount=amount,
+                            status="Pending"
+                        )
+                        db.session.add(new_late_log)
+                        db.session.commit()
+                    return payment(statecode)
+                
+                # elif late_end <= current_time:
+                elif early_start <= current_time < late_start:
+                    # Regular sign-in (early sign-in)
+                    confirm_attendance = record_attendance(user)
+        
+                    if confirm_attendance:
+                        return render_template("thankyouregister.html")
+                    else:
+                        return """<h1>Server Error!</h1> <h4><p>Failed to log attendance</p></h4>""", 500
+                
+                else:
+                    regErrorMsg = "Sign-in time elapsed or not yet reached!"
+                    return jsonify({'success':False,"message":regErrorMsg})
+           
+    return render_template("signin.html", form=form)
 
 @routes.route('/late/signin', methods=['GET', 'POST'])
 def late_reg():
     if request.method == 'POST':
-        fname = request.form['fname'].strip().capitalize()
-        mname = request.form['mname'].strip().capitalize()
-        sname = request.form['sname'].strip().upper()
-        statecode = request.form['statecode'].strip().upper()
-        signInTime = request.form['signInTime']
-        signInTD = request.form['signInTD']
-        # client_ip = request.form['client_ip']
-        client_ip = get_client_IP()
-        status = request.form['status']
+        statecode = request.form['statecode']
         
-        # Check if user is already registered in database or add user
-        user = check_user_reg_exists(statecode, fname, mname, sname)
-        # print(user.id)
-        
-        # if result["success"]:
-        #     confirm_attendance = record_attendance(user=result["user"])
-        # else:
-        #     regErrorMsg = result["message"]
-        #     return render_template ("signin.html", regErrorMsg=regErrorMsg)
+        # Check user in database
+        user = Users.query.filter_by(state_code=statecode).first()
         
         # Check if user attendance is registered already
         attendanceStatus = check_user_attendance_exists(statecode)
-
         if attendanceStatus != "":
-            return render_template("signin.html", regErrorMsg=attendanceStatus)
+            return jsonify({'success':False,"message":attendanceStatus})
         
-        # Add late registration to database
-        confirm_attendance = record_attendance(user)
+        # Add late attendnace to database
+        if user:
+            confirm_attendance = record_attendance(user)
         
         if confirm_attendance:
             # Remove the user from the LateLog database
-            pop_latecomer(statecode, status)
+            pop_latecomer(statecode)
             return render_template("thankyouregister.html")
         else:
             return """<h1>Server Error!</h1> <h4><p>Failed to log attendance</p></h4>""", 500
@@ -475,16 +437,25 @@ def update_latecomer():
     return redirect(url_for('routes.admindash'))
 
 @routes.route('/payment/late-signin', methods=['GET', 'POST'])
-def payment(fname, mname, sname, statecode, signInTime, signInTD, client_ip):
-    
+def payment(statecode):
+    # Check Latecomer
     latecomer = LateLog.query.filter_by(state_code=statecode).first()
+    
+    # Check admin settings for payment details
+    settings = AdminSettings.query.first()
 
     # Check if the statecode exists in the database
     if latecomer:
         amount = latecomer.amount
-        return render_template("paymentpage.html", fname=fname, mname=mname, sname=sname, statecode=statecode, amount=amount)
+        # return jsonify({"success":True,"message":"Sent latecomer"})
+        return render_template("paymentpage.html", 
+                               statecode=statecode, 
+                               amount=amount, 
+                               bankname=settings.bank_name,
+                               acctname=settings.account_name, 
+                               acctnum=settings.account_number)
     else :
-        return jsonify(success=False), 404  # Failure status error
+        return jsonify({"success":False,"message":"Couldn't find latecomer"}) # Failure status error
 
 @routes.route('/check_status', methods=['GET'])
 def check_status():
@@ -580,104 +551,88 @@ def user_logs():
     for log in user_logs:
         print(log.meeting_date, log.sign_in_time, log.ip_address)
 
+@routes.route('/thankyou')
+def thankyou():
+    return render_template('thankyouregister.html')
+
 
 # ---------------- FUNCTIONS ---------------- #
 
-def check_user_reg_exists(statecode, fname, mname, sname):
-    # Normalize input for consistent comparison
-    statecode = statecode.strip().upper()
-    fname = fname.strip().capitalize()
-    mname = mname.strip().capitalize() if mname else ""
-    sname = sname.strip().upper()
-    try:
-        # Query for the user
-        new_user = Users.query.filter_by(
-            state_code=statecode,
-            first_name=fname,
-            last_name=sname
-        ).first()
-
-        # If the user does not exist, create a new one
-        if not new_user:
-            new_user = Users(
-                first_name=fname,
-                middle_name=mname,
-                last_name=sname,
+def check_user_reg_exists(user_data=None,statecode=None,last_name=None, **kwargs):
+    if statecode and last_name :
+        try:
+            # Query for the user
+            user = Users.query.filter_by(
                 state_code=statecode,
-                registration_date=datetime.now().date()
-            )
-            db.session.add(new_user)
-            db.session.commit()
-            print("New User Added.")
-        return new_user
+                last_name=last_name
+            ).first()
 
-    except IntegrityError:
-        db.session.rollback()  # Rollback the transaction
-        print("IntegrityError: User might already exist. Querying again...")
-        # Re-query the user in case of integrity error, 
-        # check again using case-insensitive format
-        return Users.query.filter(
-            Users.state_code == statecode,
-            Users.first_name.ilike(fname),  # Case-insensitive
-            Users.last_name.ilike(sname)
-        ).first()
+            # RETURN RESPONSE
+            if not user:
+                return False
+            else:
+                return True
 
-    except Exception as e:
-        print(f"An unexpected error occurred: {str(e)}")
-        db.session.rollback()
-        return None
+        except IntegrityError:
+            db.session.rollback()  # Rollback the transaction
+            print("IntegrityError: User might already exist. Querying again...")
+            # Re-query the user in case of integrity error, 
+            # check again using case-insensitive format
+            return Users.query.filter(
+                Users.state_code == user_data['state_code'],
+                Users.first_name.ilike(user_data['first_name']),  # Case-insensitive
+                Users.last_name.ilike(user_data['last_name'])
+            ).first()
     
-    
-    # try :
-        # Query for potential matches
-        # matches = Users.query.filter(
-        #     or_(
-        #         Users.state_code == statecode,
-        #         Users.first_name.ilike(fname),
-        #         Users.last_name.ilike(sname)
-        #     )
-        # ).all()
+    if user_data :
+        # Normalize input for consistent comparison
+        print(user_data['first_name'])
+        print(user_data['middle_name'])
+        print(user_data['last_name'])
+        print(user_data['gender'])
+        print(user_data['local_gov'])
+        print(user_data['state_code'])
+        try:
+            # Query for the user
+            new_user = Users.query.filter_by(
+                state_code=user_data['state_code'],
+                first_name=user_data['first_name'],
+                last_name=user_data['last_name']
+            ).first()
+
+            # If the user does not exist, create a new one
+            if not new_user:
+                new_user = Users(
+                    first_name=user_data['first_name'],
+                    middle_name=user_data['middle_name'],
+                    last_name=user_data['last_name'],
+                    gender=user_data['gender'],
+                    local_gov=user_data['local_gov'],
+                    state_code=user_data['state_code'],
+                    registration_date=datetime.now().date()
+                )
+                db.session.add(new_user)
+                db.session.commit()
+                print("New User Added.")
+            return new_user
+
+        except IntegrityError:
+            db.session.rollback()  # Rollback the transaction
+            print("IntegrityError: User might already exist. Querying again...")
+            # Re-query the user in case of integrity error, 
+            # check again using case-insensitive format
+            return Users.query.filter(
+                Users.state_code == user_data['state_code'],
+                Users.first_name.ilike(user_data['first_name']),  # Case-insensitive
+                Users.last_name.ilike(user_data['last_name'])
+            ).first()
+
+        except Exception as e:
+            print(f"An unexpected error occurred: {str(e)}")
+            db.session.rollback()
+            return None
         
-        # # if not matches:
-        # #     print("NOOOOOO MATCHHHHHH 1")
-        # #     return {"success": False, "message": "No matching user found"}
-        
-        # # Count the matching parameters for partial match situations
-        # for match in matches:
-        #     match_count = sum([
-        #         match.state_code == statecode,
-        #         match.first_name == fname,
-        #         match.last_name == sname
-        #     ])
-        #     if match_count == 3:
-        #         print("MATCHHHHHH")
-        #         return {"success": True, "user":match}
-        #     elif match_count in [1,2]:
-        #         print("PARTIAL MATCHHHHHH")
-        #         return {
-        #             "success": False,
-        #             "message": f"Partial match found ({match_count}/3 details matched). Please verify the entered details."
-        #         }
-        #     elif match_count == 0:
-        #         print("NOOOOOO MATCHHHHHH 2")
-        #         new_user = Users(
-        #             first_name=fname,
-        #             middle_name=mname,
-        #             last_name=sname,
-        #             state_code=statecode,
-        #             registration_date=datetime.now().date()
-        #         )
-        #         db.session.add(new_user)
-        #         db.session.commit()
-        #         print("New User Added.")
-        #         # return {"success": True, "user":new_user}
-        #         return new_user
-                
-    # except Exception as e:
-        # print(f"An unexpected error occurred: {str(e)}")
-        # db.session.rollback()
-        # return None
-    
+
 def check_user_attendance_exists(statecode):
     # Check if the state code is already in the day's attendance
     
@@ -687,11 +642,6 @@ def check_user_attendance_exists(statecode):
         attendance_logged = AttendanceLog.query.filter_by(user_id=user_exists.id, meeting_date=meeting_date).first()
         if attendance_logged:
             return f"StateCode, {statecode}, already logged for today!"
-
-    # ip_used = AttendanceLog.query.filter_by(ip_address=client_ip).first()
-    # Check if the device (IP address) is already used
-    # elif (ip_used):
-    #     return "Can't use the same device for more than one signing!"
     
     return ""
 
@@ -738,7 +688,7 @@ def get_client_IP():
         print(2)
         return client_ip
 
-def pop_latecomer(statecode, status):
+def pop_latecomer(statecode):
     # Remove user from LateLog after fine fee payment is confirmed
     Latecomer = LateLog.query.filter_by(state_code=statecode, status="Approved").first()
     db.session.delete(Latecomer)

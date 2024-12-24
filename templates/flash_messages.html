@@ -9,7 +9,7 @@
                     <script>
                         // Redirect after 2 seconds
                         setTimeout(() => {
-                            window.location.href = "{{ url_for('routes.signin') }}";
+                            window.location.href = "{{ target_url }}";
                         }, 5000);
                     </script>
                 {% else %}

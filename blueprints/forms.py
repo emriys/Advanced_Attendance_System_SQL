@@ -52,6 +52,25 @@ class MemberRegisterForm(FlaskForm):
             print('Use exists 1')
             raise ValidationError(f"Member with statecode {state_code} already exists")
 
+class SigninForm(FlaskForm):
+        state_code = StringField('State Code',
+                             validators=[
+                                 DataRequired(),
+                                 Length(min=2,max=11),
+                                 Regexp(
+                                     regex=r'^[Kk][Ww]/\d{2}[a-cA-C]/\d{4}$',
+                                     message="State code must follow the format: KW/XX/A/XXXX"
+                                    )
+                                ])
+        last_name = StringField('Last Name',
+                        validators=[DataRequired(), Length(min=2,max=30),
+                                    Regexp(
+                                     regex=r'^[A-Za-z]+(-[A-Za-z]+)?$',
+                                     message="Must contain only letters"
+                                )
+                            ])
+        submit = SubmitField('Sign-In')
+
 #----------------- ADMIN SETTINGS FORMS --------------------
 
 

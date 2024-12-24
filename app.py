@@ -48,6 +48,7 @@ def refresh_session():
         session.modified = True  # Refresh session timeout
 
 
+
 # ---------------- RUN APPLICATION ---------------- #
 
 if __name__ == "__main__":

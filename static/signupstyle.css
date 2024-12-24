@@ -84,8 +84,26 @@ input {
   border-radius: 5px;
 }
 
+.button {
+  background-color: #3498db;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin-top: 10px;
+  cursor: pointer;
+  border-radius: 5px;
+}
 
-button[type="submit"] {
+.button:hover {
+  background-color: #2980b9;
+}
+
+
+/* button[type="submit"] {
   background-color: #3498db;
   border: none;
   color: white;
@@ -101,7 +119,7 @@ button[type="submit"] {
 
 button[type="submit"]:hover {
   background-color: #2980b9;
-}
+} */
 
 p {
   margin-top: 20px;
@@ -151,6 +169,39 @@ a:hover {
   color: #3c763d;
   background-color: #dff0d8;
   border-color: #d6e9c6;
+}
+
+.msg-area {
+  margin-top: 0.5rem;
+  display: block;
+}
+
+.msg-area.error-shown {
+  background-color: #f8d7da; /* Light red for error */
+  color: #721c24; /* Dark red text */
+  border: 1px solid #f5c6cb; /* Border matching the red shade */
+  border-radius: 6px; /* Rounded corners */
+  padding: 0.5rem; /* Space inside the box */
+  font-size: 1rem;
+  font-weight: 500; /* Semi-bold for emphasis without being overwhelming */
+  text-align: center; /* Center the text inside the box */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Add a light shadow for depth */
+  margin-top: 1rem; /* Add space above the message area */
+  margin-bottom: 1rem; /* Add space below the message area */
+}
+
+.msg-area.success-shown {
+  background-color: #d4edda; /* Soft green for success */
+  color: #155724; /* Dark green for contrast */
+  border: 1px solid #c3e6cb; /* Subtle border matching the background */
+  border-radius: 4px; /* Rounded corners */
+  padding: 0.5rem; /* Space inside the box */
+  font-size: 1rem;
+  font-weight: 500; /* Semi-bold for emphasis without being overwhelming */
+  text-align: center; /* Center the text inside the box */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Add a light shadow for depth */
+  margin-top: 1rem; /* Add space above the message area */
+  margin-bottom: 1rem; /* Add space below the message area */
 }
 /* @media all and (max-width:500px) {
     body{
