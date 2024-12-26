@@ -631,7 +631,6 @@ def check_user_reg_exists(user_data=None,statecode=None,last_name=None, **kwargs
             print(f"An unexpected error occurred: {str(e)}")
             db.session.rollback()
             return None
-        
 
 def check_user_attendance_exists(statecode):
     # Check if the state code is already in the day's attendance
@@ -702,7 +701,7 @@ def get_attendance_data(meeting_date):
         meeting_date = datetime.now().date()
         
     log_query = AttendanceLog.query.join(Users).add_columns(
-        Users.first_name, Users.middle_name, Users.last_name, Users.state_code, 
+        Users.first_name, Users.middle_name, Users.last_name, Users.state_code, Users.gender,
         AttendanceLog.meeting_date
     )
     
@@ -717,7 +716,9 @@ def get_attendance_data(meeting_date):
             'middle_name': log.middle_name,
             'last_name': log.last_name,
             'state_code': log.state_code,
-            'meeting_date': log.meeting_date.strftime('%Y-%m-%d')
+            'meeting_date': log.meeting_date.strftime('%Y-%m-%d'),
+            # 'gender': log.gender,
+            'gender': getattr(log, 'gender', 'N/A')  # Provide a fallback value
         }
         for log in logs
     ]
@@ -826,8 +827,9 @@ def generate_pdf_with_reportlab(data, meeting_date):
 
     # Table headers
     c.setFont("Helvetica-Bold", 12)
-    headers = ["S/N","First Name", "Middle Name", "Last Name", "State Code"]
-    x_positions = [50, 100, 200, 300, 450]
+    # headers = ["S/N","First Name", "Middle Name", "Last Name", "State Code"]
+    headers = ["S/N","NAME", "STATE CODE", "SEX"]
+    x_positions = [50, 100, 300, 400]
     y_position = 700
     for i, header in enumerate(headers):
         c.drawString(x_positions[i], y_position, header)
@@ -844,11 +846,17 @@ def generate_pdf_with_reportlab(data, meeting_date):
             c.setFont("Helvetica", 12)
             y_position = 750
 
+        # c.drawString(x_positions[0], y_position, str(index))
+        # c.drawString(x_positions[1], y_position, record['first_name'])
+        # c.drawString(x_positions[2], y_position, record['middle_name'])
+        # c.drawString(x_positions[3], y_position, record['last_name'])
+        # c.drawString(x_positions[4], y_position, record['state_code'])
+        # y_position -= 20
+    
         c.drawString(x_positions[0], y_position, str(index))
-        c.drawString(x_positions[1], y_position, record['first_name'])
-        c.drawString(x_positions[2], y_position, record['middle_name'])
-        c.drawString(x_positions[3], y_position, record['last_name'])
-        c.drawString(x_positions[4], y_position, record['state_code'])
+        c.drawString(x_positions[1], y_position, f"{record['first_name']} {record['middle_name']} {record['last_name']}")
+        c.drawString(x_positions[2], y_position, record['state_code'])
+        c.drawString(x_positions[3], y_position, record['gender'])
         y_position -= 20
 
     # Finalize the PDF
