@@ -39,16 +39,20 @@
             <br>
             <form class="mb-3" method="POST">
                 <h6>Select a date range:</h6>
-                <input type="date" name="date" id="dateInput" class="form-control mb-2" placeholder="Filter by Date"
+                <label for="date">Start Date: </label>
+                <input type="date" name="date" id="dateInput" class="form-control mb-2" placeholder="Start date"
+                    required="">
+                <label for="endDate">End Date: </label>
+                <input type="date" name="endDate" id="endDateInput" class="form-control mb-2" placeholder="End date"
                     required="">
                 <button class="btn btn-primary" id="check-button" type="button">Check</button>
             </form>
             <div class="input-group">
                 <select name="format" class="form-select" id="formatDropdown" required>
-                    <option value="" selected disabled>Select File Format</option>
+                    <option value="" selected>Select File Format</option>
                     <option value="pdf">PDF (.pdf)</option>
-                    <option value="csv">CSV (.csv)</option>
                     <option value="xlsx">Excel (.xlsx)</option>
+                    <option value="csv">CSV (.csv)</option>
                 </select>
                 <button type="submit" class="btn btn-primary" id="download-button">Download</button>
             </div>
@@ -102,6 +106,7 @@
             const downloadButton = document.getElementById('download-button');
             const formatDropdown = document.getElementById("formatDropdown");
             const dateInput = document.getElementById('dateInput');
+            const endDateInput = document.getElementById('endDateInput');
             const tableBody = document.querySelector('.table tbody');
             const overlay = document.getElementById("overlay");
             const spinner = document.getElementById("loadingSpinner");
@@ -124,11 +129,11 @@
             };
 
             // Function to fetch attendance logs
-            const fetchAttendanceLogs = (date) => {
+            const fetchAttendanceLogs = (start_date,end_date) => {
                 message = "Loading..."
                 showSpinner("Loading Table...");
                 // Construct the fetch URL
-                const url = date ? `/admin/attendance_logs?date=${date}` : `/admin/attendance_logs`;
+                const url = start_date && end_date ? `/admin/attendance_logs?start_date=${start_date}&end_date=${end_date}` : `/admin/attendance_logs`;
 
                 // Fetch attendance logs from the server
                 fetch(url, {
@@ -185,24 +190,27 @@
             // Add event listener to "Check" button for querying specific dates
             checkButton.addEventListener('click', () => {
 
-                const date = dateInput.value;
-                if (!date) {
-                    alert("Please select a date before checking.");
+                const start_date = dateInput.value;
+                const end_date = endDateInput.value;
+                if (!start_date || !end_date) {
+                    alert("Please select a date range before checking.");
                 }
                 else {
                     // Fetch today's attendance logs on page load
-                    fetchAttendanceLogs(date);
+                    fetchAttendanceLogs(start_date,end_date);
                 }
             });
 
             // Handle download button click
             downloadButton.addEventListener("click", () => {
                 const selectedFormat = formatDropdown.value; // Get selected format
-                const meeting_date = dateInput.value; // Get selected date
+                const start_date = dateInput.value; // Get selected date
+                const end_date = endDateInput.value;
                 console.log(selectedFormat);
-                console.log(meeting_date);
-                if (selectedFormat && meeting_date) {
-                    const url = `/export_attendance?format=${selectedFormat}&date=${meeting_date}`;
+                console.log(start_date);
+                console.log(end_date);
+                if (selectedFormat && start_date && end_date) {
+                    const url = `/export_attendance?format=${selectedFormat}&start_date=${start_date}&end_date=${end_date}`;
                     showSpinner("Getting file...");
                     // Fetch attendance logs from the server
                     fetch(url, {
@@ -221,7 +229,11 @@
                             const link = document.createElement('a');
                             const fileURL = window.URL.createObjectURL(blob);
                             link.href = fileURL;
-                            link.download = `NIESAT_attendance_${meeting_date}.${selectedFormat}`;
+                            if (start_date == end_date) {
+                                link.download = `NIESAT_attendance_${start_date}.${selectedFormat}`;
+                            }else {
+                                link.download = `NIESAT_attendance_${start_date}_to_${end_date}.${selectedFormat}`;
+                            }
                             document.body.appendChild(link);
                             link.click();
                             document.body.removeChild(link);

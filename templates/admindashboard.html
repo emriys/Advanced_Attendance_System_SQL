@@ -51,7 +51,7 @@
                                     <input class="form-control" id="stateCodeInput" maxlength="11" minlength="1"
                                         pattern="[Kk][Ww]/\d{2}[a-cA-C]/\d{4}"
                                         title="Must contain correct and complete statecode: KW/XXX/XXXX"
-                                        name="state_code" type="text" placeholder="KW/XXX/XXXX" value="" required>
+                                        name="state_code" type="text" placeholder="KW/XXX/XXXX" value="" required="">
 
                                 </div>
                                 <button type="button" class="btn btn-primary" id="check-button">Check</button>
@@ -222,12 +222,15 @@
                 // Get the statecode value
                 const stateCode = stateCodeInput.value;
 
+                if(!stateCode) {
+                    return errorMsg("Please enter a statecode");
+                }
+
                 // Send a request to the server to fetch the amount based on the state code
                 fetch(`/get_details?stateCode=${stateCode}`)
                     .then((response) => {
                         return response.json().then((data) => {
                             if (!response.ok) {
-                                console.log('TESSSSSSSTTTT1');
                                 // Display error messages if the response is not ok
                                 message = data.message;
                                 errorMsg(message);
@@ -238,7 +241,6 @@
                     })
                     .then((data) => {
                         if (data.success) {
-                            console.log('TESSSSSSSTTTT2');
                             // On success, update field with received value
                             console.log("Success:", data);
                             amountInput.value = parseFloat(data.message);

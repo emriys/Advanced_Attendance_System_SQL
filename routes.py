@@ -16,6 +16,10 @@ import tempfile
 import io
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.units import inch
 from sqlalchemy import or_
 from werkzeug.security import check_password_hash
 from functools import wraps
@@ -55,16 +59,16 @@ def register():
             return jsonify({'success':False,"message":'User already exists'})
         else:
             user_data = {
-                'first_name':form.first_name.data.capitalize(),
-                'middle_name':form.middle_name.data.capitalize(),
-                'last_name':form.last_name.data.upper(),
-                'gender':form.gender.data.capitalize(),
-                'local_gov':form.local_gov_area.data.capitalize(),
-                'state_code':form.state_code.data.upper()
+                'first_name':form.first_name.data.capitalize().strip(),
+                'middle_name':form.middle_name.data.capitalize().strip(),
+                'last_name':form.last_name.data.upper().strip(),
+                'gender':form.gender.data.capitalize().strip(),
+                'local_gov':form.local_gov_area.data.capitalize().strip(),
+                'state_code':form.state_code.data.upper().strip()
             }
-            print(user_data['first_name'])
-            print(user_data['middle_name'])
-            print(user_data['last_name'])
+            print(f"'{user_data['first_name']}'")
+            print(f"'{user_data['middle_name']}'")
+            print(f"'{user_data['last_name']}'")
             print(user_data['gender'])
             print(user_data['local_gov'])
             print(user_data['state_code'])
@@ -136,7 +140,7 @@ def signin():
                 # elif late_end <= current_time:
                 elif early_start <= current_time < late_start:
                     # Regular sign-in (early sign-in)
-                    confirm_attendance = record_attendance(user)
+                    confirm_attendance = record_attendance(confirm_reg)
         
                     if confirm_attendance:
                         return render_template("thankyouregister.html")
@@ -262,23 +266,35 @@ def attendance_logs():
     
     if is_ajax:
         # Get the date from the query parameter (default to today's date if not provided)
-        meeting_date = request.args.get('date')
+        meeting_date = request.args.get('start_date')
+        meeting_date2 = request.args.get('end_date')
+        print("Received Range: ")
+        print(meeting_date)
+        print(meeting_date2)
         # print(meeting_date)
         
         # If no date is provided, default to today's date
-        if not meeting_date:
-            meeting_date = datetime.now().date()
+        if not all([meeting_date, meeting_date2]):
+            meeting_date = meeting_date2 = datetime.now().date()
+            # Query the attendance logs for the given date and respond to the AJAX request
+            attendance_request = get_attendance_data(meeting_date)
             # print(meeting_date)
         
-        # Query the attendance logs for the given date and respond to the AJAX request
-        attendance_request = get_attendance_data(meeting_date)
+        if meeting_date == meeting_date2:
+            attendance_request = attendance_request = get_attendance_data(meeting_date)
+        
+        # If a date range is provided, get data across the range
+        if meeting_date != meeting_date2:
+            attendance_request = collect_attendance_data_for_range(meeting_date, meeting_date2)
+        
+        
         # print(attendance_request)
         if len(attendance_request) <= 0:
-            return jsonify({"success": False, "message": "No attendance records found for this date."}), 200
+            return jsonify({"success": False, "message": "No attendance records found for this date range."}), 200
 
         return jsonify(attendance_request)
 
-    # If the request is not an AJAX request
+    # If the request is not an AJAX request, return attendance for the day
     meeting_date = datetime.now().date()
     attendance_today = get_attendance_data(meeting_date)
     # print(attendance_today)
@@ -369,14 +385,19 @@ def clear_user_logs():
                         return jsonify({"message": f"No records found for state code {statecode}."}), 200
                     
                 elif action == "delete":
+                    # Delete all associated attendance logs
+                    attd_deleted_rows = AttendanceLog.query.filter_by(user_id=user.id).delete()
+                    db.session.commit()
+                    
+                    # Delete user record
                     deleted_rows = Users.query.filter(
                         Users.state_code == statecode,  # Case-insensitive
                         Users.last_name.ilike(last_name)
                     ).delete()
                     db.session.commit()
                     
-                    if deleted_rows > 0:
-                        print("User records deleted from database.")
+                    if deleted_rows > 0  or attd_deleted_rows > 0:
+                        # print("User records deleted from database.")
                         return jsonify({"message":f"All records of {statecode} deleted successfully."}), 200
                     else:
                         return jsonify({"message": f"No records found for state code {statecode}."}), 200
@@ -388,6 +409,7 @@ def clear_user_logs():
     return render_template("clearuser.html")
 
 @routes.route('/get_details', methods=['GET'])
+@admin_required
 def getDetails():
     # GETS THE AMOUNT FROM THE USER DATABASE AND 
     # UPDATES THE ADMIN DASHBOARD REQUESTS TABLE
@@ -404,6 +426,7 @@ def getDetails():
     return jsonify({'success': False, 'message': 'User not found'}), 404
 
 @routes.route('/status_update', methods=['POST'])
+@admin_required
 def update_latecomer():
     statecode = request.form['state_code'].upper()
     status = request.form['status'].capitalize()
@@ -496,54 +519,61 @@ def pay_monthly_due():
     return render_template ("error.html")
 
 @routes.route('/export_attendance', methods=['GET', 'POST'])
+@admin_required
 def export_attendance():
-    # try:
-        format = request.args.get('format')
-        meeting_date = request.args.get('date')
-        print("Received: ")
-        print(format)
-        print(meeting_date)
-        
-        if not format:
-            return jsonify({'error': 'No format specified'}), 400
-        if not meeting_date:
-            return jsonify({'error': 'No date specified'}), 400
-        if format not in ['csv', 'xlsx', 'pdf']:
-            return jsonify({'error': 'Invalid format selected. Allowed formats are csv, xlsx, pdf'}), 400
-        if not meeting_date:
-            return jsonify({'error': 'Please provide a valid meeting date'}), 400
 
-        # Query attendance logs
-        data = get_attendance_data(meeting_date)
-        
-        # Generate the file in the requested format
-        if format == 'csv':
-            file_buffer = generate_csv(data)
-            mimetype = 'text/csv'
-            extension = 'csv'
-        elif format == 'xlsx':
-            file_buffer = generate_xlsx(data, meeting_date)
-            mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            extension = 'xlsx'
-        elif format == 'pdf':
-            return generate_pdf_with_reportlab(data, meeting_date)
-            mimetype = 'application/pdf'
-            extension = 'pdf'
-        else:
-            return jsonify({'error': 'Invalid format selected'}), 400
+    format = request.args.get('format')
+    meeting_date = request.args.get('start_date')
+    meeting_date2 = request.args.get('end_date')
+    print("Received: ")
+    print(format)
+    print(meeting_date)
+    print(meeting_date2)
+    
+    if not all([format, meeting_date, meeting_date2]):
+        return jsonify({'error': 'Missing required parameters'}), 400
 
-        # For BytesIO and io.BytesIO, send directly from memory
-        return send_file(
-            file_buffer,
-            mimetype=mimetype,
-            as_attachment=True,
-            download_name=f"NIESAT_attendance_{meeting_date}.{extension}"
-        )
+    if format not in ['csv', 'xlsx', 'pdf']:
+        return jsonify({'error': 'Invalid format selected. Allowed formats are csv, xlsx, pdf'}), 400
+
+    attendance_data = collect_attendance_data_for_range(meeting_date, meeting_date2)
+    print('Collect')
+    print(attendance_data)
+    date_range = get_date_range(meeting_date, meeting_date2)
+    data = preprocess_attendance_data_for_range(attendance_data,date_range)
+    print("Data")
+    print(data)
         
-    # except SQLAlchemyError as e:
-    #     return jsonify({'error': f'Database error: {str(e)}'}), 500
-    # except Exception as e:
-    #     return jsonify({'error': f'An unexpected error occurred: {str(e)}'}), 500
+    if meeting_date != meeting_date2:
+        meeting_date=f"{meeting_date}_to_{meeting_date2}"
+    else : meeting_date = meeting_date
+    
+    # Generate the file in the requested format
+    if format == 'csv':
+        file_buffer = generate_csv_with_title(data, meeting_date)
+        # file_buffer = generate_csv(data)
+        mimetype = 'text/csv'
+        extension = 'csv'
+    elif format == 'xlsx':
+        file_buffer = generate_xlsx_range(data, meeting_date)
+        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        extension = 'xlsx'
+    elif format == 'pdf':
+        # file_buffer = generate_pdf_for_range(data, meeting_date)
+        return generate_pdf_with_wrapping_range(data, meeting_date)
+        # return generate_pdf_with_reportlab(data, meeting_date)
+        mimetype = 'application/pdf'
+        extension = 'pdf'
+    else:
+        return jsonify({'error': 'Invalid format selected'}), 400
+
+    # For BytesIO and io.BytesIO, send directly from memory
+    return send_file(
+        file_buffer,
+        mimetype=mimetype,
+        as_attachment=True,
+        download_name=f"NIESAT_attendance_{meeting_date}.{extension}"
+    )
 
 @routes.route('/user_attendance_log', methods=['POST'])
 def user_logs():
@@ -560,6 +590,8 @@ def thankyou():
 
 def check_user_reg_exists(user_data=None,statecode=None,last_name=None, **kwargs):
     if statecode and last_name :
+        print(last_name)
+        print(statecode)
         try:
             # Query for the user
             user = Users.query.filter_by(
@@ -569,9 +601,10 @@ def check_user_reg_exists(user_data=None,statecode=None,last_name=None, **kwargs
 
             # RETURN RESPONSE
             if not user:
+                print("None")
                 return False
             else:
-                return True
+                return user
 
         except IntegrityError:
             db.session.rollback()  # Rollback the transaction
@@ -694,6 +727,7 @@ def pop_latecomer(statecode):
     db.session.commit()
 
 def get_attendance_data(meeting_date):
+    # Get attendance data for one particular day
     meeting_date = meeting_date
     # meeting_date = datetime.now().date()
     
@@ -726,6 +760,8 @@ def get_attendance_data(meeting_date):
     
     return attendance_data
 
+
+
 def getSettings():
     # Get Admin Settings
     settings = AdminSettings.query.first()
@@ -745,34 +781,97 @@ def getSettings():
     
     return settings_data
 
+def preprocess_data(data):
+    # Preprocess Data for pdf generation
+    formatted_data = []
+    for i, record in enumerate(data, start=1):
+        full_name = f"{record['first_name']} {record['middle_name']} {record['last_name']}"
+        state_code = record.get('state_code', 'N/A')
+        gender = record.get('gender', 'N/A')
+        formatted_data.append({
+            'S/N': i,
+            'NAME': full_name,
+            'STATE CODE': state_code,
+            'SEX': gender
+        })
+    return formatted_data
+
 def generate_csv(data):
-    # Define explicit headers
-    # headers = ['First Name', 'Middle Name', 'Last Name', 'State Code', 'Meeting Date']
+    # Preprocess data
+    formatted_data = preprocess_data(data)
     
-    # Convert data to DataFrame
-    df = pd.DataFrame(data)
-    # df = pd.DataFrame(data, columns=headers)
+    # Convert formatted data to DataFrame
+    df = pd.DataFrame(formatted_data)
     
     # Create a CSV in memory
     csv_data = df.to_csv(index=False)
     return BytesIO(csv_data.encode('utf-8'))
 
 def generate_xlsx(data, meeting_date):
-    # Define explicit headers
-    # headers = ['First Name', 'Middle Name', 'Last Name', 'State Code', 'Meeting Date']
+    # Preprocess data
+    formatted_data = preprocess_data(data)
     
-    # Convert data to DataFrame
-    df = pd.DataFrame(data)
-    # df = pd.DataFrame(data, columns=headers)
+    # Convert formatted data to DataFrame
+    df = pd.DataFrame(formatted_data)
     
     # Create an in-memory buffer to store the Excel file
     excel_buffer = BytesIO()
     with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
         df.to_excel(writer, index=False, sheet_name=f'Attendance - {meeting_date}')
         
+        # Access the workbook and worksheet objects
+        workbook = writer.book
+        worksheet = writer.sheets[f'Attendance - {meeting_date}']
+        
+        # Calculate dynamic column widths
+        for i, col in enumerate(df.columns):
+            max_length = max(
+                [len(str(value)) for value in df[col]] + [len(str(col))]
+            )  # Include header length
+            worksheet.set_column(i, i, max_length + 2)  # Add padding
+        
     # Move to the start of the buffer before returning
     excel_buffer.seek(0)
     return excel_buffer
+
+def generate_xlsx_range(data, meeting_date):
+    # Create an in-memory buffer for the Excel file
+    excel_buffer = BytesIO()
+    
+    # Add the serial number column to the data
+    data = [{"S/N": i + 1, **record} for i, record in enumerate(data)]
+    
+    with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+        df = pd.DataFrame(data)
+        df.to_excel(writer, index=False, startrow=4, sheet_name='Attendance')
+
+        # Access the workbook and worksheet
+        workbook = writer.book
+        worksheet = writer.sheets['Attendance']
+
+        # Add a title and merge cells for it
+        title = (f"NIGERIA INNOVATIVE ENGINEERS SCIENTIST AND APPLIED TECHNOLOGIST (NIESAT)"
+                 f"\nCOMMUNITY DEVELOPMENT SERVICE GROUP ATTENDANCE for {meeting_date}")
+        worksheet.merge_range("A1:R3", title, workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'bold': True, 'font_size': 18, 'text_wrap':True
+        }))
+        
+        # Write the headers manually below the title
+        # for col_num, col_name in enumerate(df.columns):
+        #     worksheet.write(2, col_num, col_name, workbook.add_format({'font_size': 12,'bold': True,'align': 'center', 'valign': 'vcenter'}))
+
+        # Adjust column widths dynamically
+        for col_num, col_name in enumerate(df.columns):
+            max_length = max(df[col_name].astype(str).apply(len).max(), len(col_name)) + 2
+            worksheet.set_column(col_num, col_num, max_length)
+
+        # Wrap text for the "NAME" column
+        name_format = workbook.add_format({'font': 'Book Antiqua', 'font_size':11})
+        worksheet.set_column('C:C', 20, name_format)
+
+    excel_buffer.seek(0)
+    return excel_buffer
+
 
 def generate_pdf(data, meeting_date):
     # Initialize PDF
@@ -815,6 +914,7 @@ def generate_pdf(data, meeting_date):
     return tmp_file
 
 def generate_pdf_with_reportlab(data, meeting_date):
+    
     # Create a BytesIO buffer to hold the PDF content
     pdf_buffer = BytesIO()
 
@@ -825,19 +925,42 @@ def generate_pdf_with_reportlab(data, meeting_date):
     c.setFont("Helvetica-Bold", 16)
     c.drawString(200, 750, f"Attendance Logs - {meeting_date}")
 
-    # Table headers
+    # Calculate dynamic column widths
+    headers = ["S/N", "NAME", "STATE CODE", "SEX"]
+    column_data = [[str(index), 
+                    f"{record['first_name']} {record['middle_name']} {record['last_name']}", 
+                    record['state_code'], 
+                    record['gender']
+                ] for index, record in enumerate(data, start=1)]
+    
+    column_data.insert(0, headers)  # Include headers in column data for width calculation
+    
+    padding = 10 # Padding for eacg column
+    max_widths = [
+        max(len(str(row[col])) for row in column_data) * 7 + padding  # Estimate width per character
+        for col in range(len(headers))
+    ]
+    
+        # Enforce a minimum width for each column to avoid overcrowding
+    min_widths = [30, 100, 80, 40]
+    column_widths = [max(mw, min_w) for mw, min_w in zip(max_widths, min_widths)]
+    
+    # Calculate x_positions dynamically
+    # x_positions = [sum(max_widths[:i]) + 50 for i in range(len(max_widths))]
+    x_positions = [sum(column_widths[:i]) + 50 for i in range(len(headers))]
+
+    # Draw table headers
     c.setFont("Helvetica-Bold", 12)
-    # headers = ["S/N","First Name", "Middle Name", "Last Name", "State Code"]
-    headers = ["S/N","NAME", "STATE CODE", "SEX"]
-    x_positions = [50, 100, 300, 400]
     y_position = 700
     for i, header in enumerate(headers):
         c.drawString(x_positions[i], y_position, header)
 
     # Draw a line under the headers
-    c.line(50, y_position - 5, 500, y_position - 5)
+    # c.line(50, y_position - 5, x_positions[-1] + max_widths[-1], y_position - 5)
+    # Draw a line under the headers
+    c.line(50, y_position - 5, x_positions[-1] + column_widths[-1], y_position - 5)
 
-    # Table content
+    # Draw Table content
     c.setFont("Helvetica", 12)
     y_position -= 30
     for index, record in enumerate(data, start=1):
@@ -846,17 +969,15 @@ def generate_pdf_with_reportlab(data, meeting_date):
             c.setFont("Helvetica", 12)
             y_position = 750
 
-        # c.drawString(x_positions[0], y_position, str(index))
-        # c.drawString(x_positions[1], y_position, record['first_name'])
-        # c.drawString(x_positions[2], y_position, record['middle_name'])
-        # c.drawString(x_positions[3], y_position, record['last_name'])
-        # c.drawString(x_positions[4], y_position, record['state_code'])
-        # y_position -= 20
-    
-        c.drawString(x_positions[0], y_position, str(index))
-        c.drawString(x_positions[1], y_position, f"{record['first_name']} {record['middle_name']} {record['last_name']}")
-        c.drawString(x_positions[2], y_position, record['state_code'])
-        c.drawString(x_positions[3], y_position, record['gender'])
+        # Draw data rows
+        row = [str(index), 
+               f"{record['first_name']} {record['middle_name']} {record['last_name']}", 
+               record['state_code'], 
+               record['gender']]
+        
+        for i, cell in enumerate(row):
+            c.drawString(x_positions[i], y_position, str(cell))
+        
         y_position -= 20
 
     # Finalize the PDF
@@ -865,6 +986,231 @@ def generate_pdf_with_reportlab(data, meeting_date):
     # Rewind the buffer to the beginning
     pdf_buffer.seek(0)
     
+    # Return the PDF as a response
+    return Response(
+        pdf_buffer,
+        mimetype='application/pdf',
+        headers={
+            "Content-Disposition": f"attachment; filename=NIESAT_attendance_log_{meeting_date}.pdf"
+        }
+    )
+
+def generate_pdf_with_wrapping(data, meeting_date):
+    # Create a BytesIO buffer
+    pdf_buffer = BytesIO()
+
+    # Initialize the document
+    doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
+
+    # Define styles
+    styles = getSampleStyleSheet()
+    normal_style = styles["Normal"]
+
+    # Prepare table data
+    headers = ["S/N", "NAME", "STATE CODE", "SEX"]
+    table_data = [headers]  # Add headers
+
+    # Add data rows
+    for index, record in enumerate(data, start=1):
+        row = [
+            str(index),
+            Paragraph(f"{record['first_name']} {record['middle_name']} {record['last_name']}", normal_style),
+            record['state_code'],
+            record['gender']
+        ]
+        table_data.append(row)
+        
+    # Add data rows
+    # for index, record in enumerate(data, start=1):
+        # row = [
+        #     str(index),
+        #     Paragraph(f"{record['NAME']}", normal_style),
+        #     record['STATE CODE'],
+        #     record['GENDER'],
+        # ]
+        # table_data.append(row)
+
+    # Create the table
+    table = Table(table_data, colWidths=[0.5 * inch, 2.5 * inch, 1.5 * inch, 1 * inch])
+
+    # Style the table
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),  # Header background
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),  # Header text color
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Center align all cells
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Header font
+        ('FONTSIZE', (0, 0), (-1, -1), 10),  # Font size for all cells
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),  # Padding for header row
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),  # Row background
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),  # Grid lines
+    ]))
+
+    # Build the document
+    elements = [
+        Paragraph(f"Attendance Logs - {meeting_date}", styles['Title']),
+        table
+    ]
+    doc.build(elements)
+
+    # Rewind the buffer
+    pdf_buffer.seek(0)
+
+    # Return the PDF as a response
+    return Response(
+        pdf_buffer,
+        mimetype='application/pdf',
+        headers={
+            "Content-Disposition": f"attachment; filename=NIESAT_attendance_log_{meeting_date}.pdf"
+        }
+    )
+
+def collect_attendance_data_for_range(date1, date2):
+    # Generate the date range
+    date_range = get_date_range(date1, date2)
+    print("Date Range:", date_range)
+    all_attendance_data = []
+
+    # Loop through each date and fetch attendance logs
+    for date in date_range:
+        logs = AttendanceLog.query.join(Users).add_columns(
+            Users.first_name, Users.middle_name, Users.last_name, Users.gender,
+            Users.state_code, AttendanceLog.meeting_date
+        ).filter(AttendanceLog.meeting_date == date).all()
+        
+        # Append logs to attendance data
+        for log in logs:
+            try:
+                all_attendance_data.append({
+                    "first_name": log.first_name,
+                    "middle_name": log.middle_name or "",  # Handle missing middle name
+                    "last_name": log.last_name,
+                    "state_code": log.state_code,
+                    "gender": log.gender,
+                    "meeting_date": log.meeting_date.strftime("%Y-%m-%d")
+                })
+            except AttributeError as e:
+                print(f"Error processing log: {log}. Error: {e}")
+
+    print("Collected Attendance Data:", all_attendance_data)
+    return all_attendance_data
+
+
+def get_date_range(date1, date2):
+    start_date = datetime.strptime(date1, "%Y-%m-%d")
+    end_date = datetime.strptime(date2, "%Y-%m-%d")
+
+    # Generate all dates in the range
+    date_range = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d") 
+                  for i in range((end_date - start_date).days + 1)]
+    return date_range
+
+def preprocess_attendance_data_for_range(attendance_data, date_range):
+    # Dictionary to store users and their attendance
+    users = {}
+    # serial_number = 1
+    for record in attendance_data:
+        user_key = f"{record['first_name']} {record['middle_name']} {record['last_name']}"
+        if user_key not in users:
+            users[user_key] = {
+                # "S/N": serial_number,
+                "NAME": user_key,
+                "STATE CODE": record["state_code"],
+                "GENDER": record["gender"],
+                **{date: "A" for date in date_range}  # Default to "A" (Absent)
+            }
+        # Mark present for the specific date
+        users[user_key][record["meeting_date"]] = "P"
+        # serial_number+=1
+
+    # Convert dictionary to list of dictionaries
+    return list(users.values())
+
+def generate_csv_with_title(data, meeting_date):
+    # Create a CSV buffer
+    csv_buffer = BytesIO()
+
+    # Define the column order
+    dynamic_dates = sorted({key for record in data for key in record.keys() if key not in ["S/N", "NAME", "STATE CODE", "GENDER"]})
+    columns = ['S/N', 'NAME', 'STATE CODE', 'GENDER'] + dynamic_dates
+
+    # Prepare the title
+    title = (f"NIGERIA INNOVATIVE ENGINEERS SCIENTIST AND APPLIED TECHNOLOGIST (NIESAT)\n"
+             f"COMMUNITY DEVELOPMENT SERVICE GROUP ATTENDANCE for {meeting_date}")
+
+    # Write the CSV
+    writer = csv.writer(csv_buffer, quoting=csv.QUOTE_MINIMAL)
+    # Add the title as the first row(s)
+    writer.writerow([title])  # Title row
+    writer.writerow([])  # Blank row for spacing
+    writer.writerow(columns)  # Header row
+
+    # Add data rows
+    for idx, record in enumerate(data, start=1):
+        row = [idx]  # Start with serial number
+        row += [record.get(key, "N/A") for key in ['NAME', 'STATE CODE', 'GENDER'] + dynamic_dates]
+        writer.writerow(row)
+
+    # Move the buffer position back to the start
+    csv_buffer.seek(0)
+
+    return csv_buffer
+
+
+def generate_pdf_with_wrapping_range(data, meeting_date):
+    # Create a BytesIO buffer
+    pdf_buffer = BytesIO()
+
+    # Initialize the document
+    doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
+
+    # Define styles
+    styles = getSampleStyleSheet()
+    normal_style = styles["Normal"]
+
+    # Extract dynamic dates from the data
+    dynamic_dates = sorted({key for record in data for key in record.keys() if key not in ["NAME", "STATE CODE", "GENDER"]})
+
+    # Prepare table headers
+    headers = ["S/N", "NAME", "STATE CODE", "SEX"] + dynamic_dates
+    table_data = [headers]  # Add headers
+
+    # Add data rows
+    for index, record in enumerate(data, start=1):
+        row = [
+            str(index),  # Serial number
+            Paragraph(record["NAME"], normal_style),  # Name
+            record["STATE CODE"],  # State code
+            record["GENDER"],  # Gender
+        ] + [record.get(date, "N/A") for date in dynamic_dates]  # Dynamic dates
+        table_data.append(row)
+
+    # Create the table
+    col_widths = [0.5 * inch, 2.5 * inch, 1.5 * inch, 1 * inch] + [1 * inch] * len(dynamic_dates)
+    table = Table(table_data, colWidths=col_widths)
+
+    # Style the table
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),  # Header background
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),  # Header text color
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Center align all cells
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Header font
+        ('FONTSIZE', (0, 0), (-1, -1), 10),  # Font size for all cells
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),  # Padding for header row
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),  # Row background
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),  # Grid lines
+    ]))
+
+    # Build the document
+    elements = [
+        Paragraph(f"""NIGERIA INNOVATIVE ENGINEERS SCIENTIST AND APPLIED TECHNOLOGIST (NIESAT)
+             <br/>COMMUNITY DEVELOPMENT SERVICE GROUP ATTENDANCE for {meeting_date}""", styles['Title']),
+        table
+    ]
+    doc.build(elements)
+
+    # Rewind the buffer
+    pdf_buffer.seek(0)
+
     # Return the PDF as a response
     return Response(
         pdf_buffer,

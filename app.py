@@ -18,7 +18,7 @@ print(IpAddr)
 
 # Configure application
 app.secret_key = 'yibambe_wakanda'
-app.permanent_session_lifetime = timedelta(minutes=2) # Set session timeout
+app.permanent_session_lifetime = timedelta(minutes=5) # Set session timeout
 app.config['SESSION_COOKIE_SECURE'] = False  # Only send cookies over HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access to cookies
 app.config['WTF_CSRF_ENABLED'] = False # For cross-device access
