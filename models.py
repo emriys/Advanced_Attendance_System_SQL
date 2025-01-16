@@ -56,6 +56,7 @@ class AdminSettings(db.Model):
     bank_name = db.Column(db.String(100), nullable=True)
     admin_username = db.Column(db.String(50), nullable=True)
     admin_password = db.Column(db.String(255), nullable=True)
+    meeting_day = db.Column(db.String(20), nullable=True)
     
     
     

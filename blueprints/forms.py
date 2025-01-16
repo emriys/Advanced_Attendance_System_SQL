@@ -73,7 +73,6 @@ class SigninForm(FlaskForm):
 
 #----------------- ADMIN SETTINGS FORMS --------------------
 
-
 @forms_bp.route('/change_login', methods=['GET', 'POST'])
 def change_login():
     if request.method == "POST" :
@@ -208,6 +207,28 @@ def account_details():
     
     else:
         return """<html>NOT POST METHOD</html>"""
+
+@forms_bp.route('/meeting_day_update', methods=['GET', 'POST'])
+def meeting_day_update():
+    if request.method == "POST" :
+        meeting_day = request.form['meeting_day'].capitalize()
+        print(meeting_day)
+        if not meeting_day:
+            return jsonify(success=False, message="Missing a key field!")
+        
+        # Save received details to database
+        settings = AdminSettings.query.first()
+        settings.meeting_day = meeting_day
+        db.session.commit()
+        print("Meeting Day updated!")
+        
+        # Process feedback
+        return jsonify(success=True, message="Meeting Day updated successfully!")
+    
+    else:
+        return """<html>NOT POST METHOD</html>"""
+
+#-------------------FUNCTIONS------------------#
     
 # Function to hash a password
 def hash_password(password):

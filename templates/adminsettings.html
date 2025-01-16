@@ -28,12 +28,14 @@
         <div class="heading">
             <img src="{{url_for('static', filename='LOGO.jpg')}}" alt="NIESAT Logo" width="100" height="100" />
 
-            <div><h3>NIESAT Control Centre</h3>
-                <h4>Kwara State Chapter</h4></div>
+            <div>
+                <h3>NIESAT Control Centre</h3>
+                <h4>Kwara State Chapter</h4>
+            </div>
         </div>
     </header>
 
-    
+
     <div class="row mt-4">
         <h1 class="text-center">Settings</h1>
         <div class="card">
@@ -68,28 +70,22 @@
                 <br />
                 <hr>
 
-                <h5 class="card-title toggle-heading" data-target='spare' onclick="toggleForm(this)">Spare</h5>
-                <form method="POST" class="ajax-form toggle-form hidden" action="/forms/" id="spare">
+                <h5 class="card-title toggle-heading" data-target='meeting_day_form' onclick="toggleForm(this)">Meeting Day</h5>
+                <form method="POST" class="ajax-form toggle-form hidden" action="/forms/meeting_day_update" id="meeting_day_form">
                     <div class="msg-area"></div>
 
                     <div class="form-group">
-                        <label class="form-label" for="state_code">Start</label>
-                        <input class="form-control" id="stateCodeInput" maxlength="11" minlength="1" name="state_code"
-                            required="" type="text" value="" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="balance">End</label>
-                        <input class="form-control" id="balance-id" name="balance" required="" type="text" value=""
-                            required>
-
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="status">Status</label>
-                        <select class="form-select" id="status" name="status" required="">
-                            <option value="pending">Pending</option>
-                            <option value="Approved">Approved</option>
+                        <label class="form-label" for="meeting_day">Meeting Day: </label>
+                        <span id="meeting_day"></span>
+                        <select class="form-select" id="meeting_day" name="meeting_day" required="">
+                            <option value="">Select a day</option>
+                            <option value="sunday">Sunday</option>
+                            <option value="monday">Monday</option>
+                            <option value="tuesday">Tuesday</option>
+                            <option value="wednesday">Wednesday</option>
+                            <option value="thursday">Thursday</option>
+                            <option value="friday">Friday</option>
+                            <option value="saturday">Saturday</option>
                         </select>
 
                     </div>
@@ -214,34 +210,35 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => {
-                if (response.ok) {
-                    //console.log(response);
-                    return response.json();
-                }
-                throw new Error('Failed to fetch current settings: Server Error');
-            })
-            .then (data => {
-                if (data){
-                    //console.log(data);
-                    //console.log("Data Received!");
+                .then(response => {
+                    if (response.ok) {
+                        //console.log(response);
+                        return response.json();
+                    }
+                    throw new Error('Failed to fetch current settings: Server Error');
+                })
+                .then(data => {
+                    if (data) {
+                        //console.log(data);
+                        //console.log("Data Received!");
 
-                    document.getElementById('late-fee-id').placeholder = data.lateness_fine || "N/A";  //data.balance
-                    document.getElementById('due-id').placeholder = data.monthly_due || "N/A";
-                    document.getElementById('acct-num-id').placeholder = data.account_number || "N/A";
-                    document.getElementById('acct-name-id').placeholder = data.account_name || "N/A";
-                    document.getElementById('bank-name-id').placeholder = data.bank_name || "N/A";
-                    document.getElementById('username').placeholder = data.admin_username || "N/A";
-                }
-                else {
-                    //console.log("NO DATA!!")
-                }
-            })
-            .catch(error => {
-                console.log(error);
-                //alert("Failed to get settings data.");
-                return 
-            });
+                        document.getElementById('late-fee-id').placeholder = data.lateness_fine || "N/A";  //data.balance
+                        document.getElementById('due-id').placeholder = data.monthly_due || "N/A";
+                        document.getElementById('acct-num-id').placeholder = data.account_number || "N/A";
+                        document.getElementById('acct-name-id').placeholder = data.account_name || "N/A";
+                        document.getElementById('bank-name-id').placeholder = data.bank_name || "N/A";
+                        document.getElementById('username').placeholder = data.admin_username || "N/A";
+                        document.getElementById('meeting_day').innerHTML = data.meeting_day || "N/A"
+                    }
+                    else {
+                        //console.log("NO DATA!!")
+                    }
+                })
+                .catch(error => {
+                    console.log(error);
+                    //alert("Failed to get settings data.");
+                    return
+                });
 
             setTimeout(fetchData, 30000); // Call itself after a delay
         };
@@ -310,7 +307,7 @@
                             // Show an error message in the UI
                             alert('Submission failed. Please try again.');
                         });
-                        
+
                 }, { once: true }); // Ensure the click event fires only once
 
 

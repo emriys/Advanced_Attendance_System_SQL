@@ -249,6 +249,7 @@ def admin_settings():
     
     if is_ajax:
         settings = getSettings()
+        print(settings["meeting_day"])
         # print(settings)
         return jsonify(settings)
 
@@ -771,13 +772,18 @@ def getSettings():
     # print(f"Late End: {settings.late_arrival_end}")
     
     settings_data = {
+        # "early_start": settings.early_arrival_start,
+        # "late_start": settings.late_arrival_start,
+        # "late_end": settings.late_arrival_end,
         "lateness_fine": settings.lateness_fine,
         "monthly_due": settings.monthly_due,
         "account_name": settings.account_name,
         "account_number": settings.account_number,
         "bank_name": settings.bank_name,
-        "admin_username": settings.admin_username
+        "admin_username": settings.admin_username,
+        "meeting_day": settings.meeting_day
     }
+    print(f"Meeting_day: {settings.meeting_day}")
     
     return settings_data
 
