@@ -16,7 +16,8 @@ def initialize_admin_settings():
             account_name=None,
             account_number=None,
             bank_name=None,
-            meeting_day=None
+            meeting_day=None,
+            allow_attendance=None
         )
         # Add and commit the record
         db.session.add(admin_settings)

@@ -57,12 +57,5 @@ class AdminSettings(db.Model):
     admin_username = db.Column(db.String(50), nullable=True)
     admin_password = db.Column(db.String(255), nullable=True)
     meeting_day = db.Column(db.String(20), nullable=True)
+    allow_attendance = db.Column(db.String(20), nullable=True)
     
-    
-    
-
-
-
-
-
-

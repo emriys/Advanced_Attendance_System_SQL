@@ -48,7 +48,6 @@ def index():
 def history():
     return render_template ("error.html")
     return render_template ("history.html")
-    # return ("successful")
 
 @routes.route('/register', methods=['GET','POST'])
 def register():
@@ -88,68 +87,73 @@ def signin():
     # colllect details 
     # check if user registered 
     form = SigninForm()
-    if request.method == "POST" and form.validate_on_submit():
-        # Define attendance time ranges
+    
+    if request.method=="POST":
         settings = AdminSettings.query.first()
-        early_start = settings.early_arrival_start
-        late_start = settings.late_arrival_start
-        late_end = settings.late_arrival_end
-        print(early_start)
-        print(late_start)
-        print(late_end)
-        
-        last_name = form.last_name.data.upper() # Last name
-        statecode = form.state_code.data.upper()
-        print(last_name)
-        print(statecode)
-        
-        confirm_reg = check_user_reg_exists(statecode=statecode, last_name=last_name)
-        if not confirm_reg :
-            return jsonify({'success':False,"message":'Not A Registered Member'})
-        else :
-            # Check if user attendance is registered already
-            attendanceStatus = check_user_attendance_exists(statecode)
+        if settings.allow_attendance == "Disabled":
+            return jsonify({'success':False,'message':'Attendance Function Disabled!'})
+        elif request.method == "POST" and form.validate_on_submit():
+            # Define attendance time ranges
+            settings = AdminSettings.query.first()
+            early_start = settings.early_arrival_start
+            late_start = settings.late_arrival_start
+            late_end = settings.late_arrival_end
+            print(early_start)
+            print(late_start)
+            print(late_end)
+            
+            last_name = form.last_name.data.upper() # Last name
+            statecode = form.state_code.data.upper()
+            print(last_name)
+            print(statecode)
+            
+            confirm_reg = check_user_reg_exists(statecode=statecode, last_name=last_name)
+            if not confirm_reg :
+                return jsonify({'success':False,"message":'Not A Registered Member'})
+            else :
+                # Check if user attendance is registered already
+                attendanceStatus = check_user_attendance_exists(statecode)
 
-            if attendanceStatus != "":
-                return jsonify({'success':False,"message":attendanceStatus})
-                
-            else:
-                # If late, handle late sign-in
-                current_time = datetime.now().time()
-                
-                # if late_start <= current_time <= late_end:
-                # if late_end <= current_time:
-                # if current_time <= late_start:
-                if late_start <= current_time:
-                    amount = settings.lateness_fine
+                if attendanceStatus != "":
+                    return jsonify({'success':False,"message":attendanceStatus})
                     
-                    # Check if user already in late list
-                    late_status = check_latefile(statecode)
-                    if not late_status:
-                        new_late_log = LateLog(
-                            transaction_date=datetime.now().date(),
-                            state_code=statecode,
-                            request_type="Late Sign-In",
-                            amount=amount,
-                            status="Pending"
-                        )
-                        db.session.add(new_late_log)
-                        db.session.commit()
-                    return payment(statecode)
-                
-                # elif late_end <= current_time:
-                elif early_start <= current_time < late_start:
-                    # Regular sign-in (early sign-in)
-                    confirm_attendance = record_attendance(confirm_reg)
-        
-                    if confirm_attendance:
-                        return render_template("thankyouregister.html")
-                    else:
-                        return """<h1>Server Error!</h1> <h4><p>Failed to log attendance</p></h4>""", 500
-                
                 else:
-                    regErrorMsg = "Sign-in time elapsed or not yet reached!"
-                    return jsonify({'success':False,"message":regErrorMsg})
+                    # If late, handle late sign-in
+                    current_time = datetime.now().time()
+                    
+                    if late_start <= current_time <= late_end:
+                    # if late_end <= current_time:
+                    # if current_time <= late_start:
+                    # if late_start <= current_time:
+                        amount = settings.lateness_fine
+                        
+                        # Check if user already in late list
+                        late_status = check_latefile(statecode)
+                        if not late_status:
+                            new_late_log = LateLog(
+                                transaction_date=datetime.now().date(),
+                                state_code=statecode,
+                                request_type="Late Sign-In",
+                                amount=amount,
+                                status="Pending"
+                            )
+                            db.session.add(new_late_log)
+                            db.session.commit()
+                        return payment(statecode)
+                    
+                    # elif late_end <= current_time:
+                    elif early_start <= current_time < late_start:
+                        # Regular sign-in (early sign-in)
+                        confirm_attendance = record_attendance(confirm_reg)
+            
+                        if confirm_attendance:
+                            return render_template("thankyouregister.html")
+                        else:
+                            return """<h1>Server Error!</h1> <h4><p>Failed to log attendance</p></h4>""", 500
+                    
+                    else:
+                        regErrorMsg = "Sign-in time elapsed or not yet reached!"
+                        return jsonify({'success':False,"message":regErrorMsg})
            
     return render_template("signin.html", form=form)
 
@@ -249,8 +253,6 @@ def admin_settings():
     
     if is_ajax:
         settings = getSettings()
-        print(settings["meeting_day"])
-        # print(settings)
         return jsonify(settings)
 
     return render_template ("adminsettings.html")
@@ -272,7 +274,6 @@ def attendance_logs():
         print("Received Range: ")
         print(meeting_date)
         print(meeting_date2)
-        # print(meeting_date)
         
         # If no date is provided, default to today's date
         if not all([meeting_date, meeting_date2]):
@@ -282,12 +283,21 @@ def attendance_logs():
             # print(meeting_date)
         
         if meeting_date == meeting_date2:
-            attendance_request = attendance_request = get_attendance_data(meeting_date)
+            attendance_request = get_attendance_data(meeting_date)
         
         # If a date range is provided, get data across the range
         if meeting_date != meeting_date2:
-            attendance_request = collect_attendance_data_for_range(meeting_date, meeting_date2)
-        
+            # Get the set meeting day from AdminSettings then collect attendance
+            # settings = AdminSettings.query.first()
+            # meeting_day = settings.meeting_day
+            # print(f"Set Meeting Day: {meeting_day}")
+            # if meeting_day is None:
+            #     return jsonify({"success": False, "message": "No meeting day has been set."}), 200
+            
+            attendance_request= collect_attendance_data_for_range(meeting_date, meeting_date2)
+            
+            # Sort data for easier readability
+            # attendance_request = sort_by_batch_year_and_state_code(attendance_data)
         
         # print(attendance_request)
         if len(attendance_request) <= 0:
@@ -534,13 +544,22 @@ def export_attendance():
     if not all([format, meeting_date, meeting_date2]):
         return jsonify({'error': 'Missing required parameters'}), 400
 
-    if format not in ['csv', 'xlsx', 'pdf']:
-        return jsonify({'error': 'Invalid format selected. Allowed formats are csv, xlsx, pdf'}), 400
+    if format not in ['xlsx', 'pdf']:
+        return jsonify({'error': 'Invalid format selected. Allowed formats are xlsx, pdf'}), 400
 
-    attendance_data = collect_attendance_data_for_range(meeting_date, meeting_date2)
+    # Get the set meeting day from AdminSettings then collect attendance
+    settings = AdminSettings.query.first()
+    meeting_day = settings.meeting_day
+    print(f"Set Meeting Day 2: {meeting_day}")
+    if meeting_day is None:
+        return jsonify({"success": False, "message": "No meeting day has been set."}), 200
+    
+    attendance_data = collect_attendance_data_for_range(meeting_date, meeting_date2, meeting_day)
+    # Sort data for easier readability
+    attendance_data = sort_by_batch_year_and_state_code(attendance_data)
     print('Collect')
     print(attendance_data)
-    date_range = get_date_range(meeting_date, meeting_date2)
+    date_range = get_date_range(meeting_date, meeting_date2, meeting_day)
     data = preprocess_attendance_data_for_range(attendance_data,date_range)
     print("Data")
     print(data)
@@ -550,19 +569,12 @@ def export_attendance():
     else : meeting_date = meeting_date
     
     # Generate the file in the requested format
-    if format == 'csv':
-        file_buffer = generate_csv_with_title(data, meeting_date)
-        # file_buffer = generate_csv(data)
-        mimetype = 'text/csv'
-        extension = 'csv'
-    elif format == 'xlsx':
+    if format == 'xlsx':
         file_buffer = generate_xlsx_range(data, meeting_date)
         mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         extension = 'xlsx'
     elif format == 'pdf':
-        # file_buffer = generate_pdf_for_range(data, meeting_date)
         return generate_pdf_with_wrapping_range(data, meeting_date)
-        # return generate_pdf_with_reportlab(data, meeting_date)
         mimetype = 'application/pdf'
         extension = 'pdf'
     else:
@@ -767,10 +779,6 @@ def getSettings():
     # Get Admin Settings
     settings = AdminSettings.query.first()
     
-    # print(f"Early Start: {settings.early_arrival_start}")
-    # print(f"Late Start: {settings.late_arrival_start}")
-    # print(f"Late End: {settings.late_arrival_end}")
-    
     settings_data = {
         # "early_start": settings.early_arrival_start,
         # "late_start": settings.late_arrival_start,
@@ -781,9 +789,9 @@ def getSettings():
         "account_number": settings.account_number,
         "bank_name": settings.bank_name,
         "admin_username": settings.admin_username,
-        "meeting_day": settings.meeting_day
+        "meeting_day": settings.meeting_day,
+        "allow_attendance": settings.allow_attendance
     }
-    print(f"Meeting_day: {settings.meeting_day}")
     
     return settings_data
 
@@ -801,17 +809,6 @@ def preprocess_data(data):
             'SEX': gender
         })
     return formatted_data
-
-def generate_csv(data):
-    # Preprocess data
-    formatted_data = preprocess_data(data)
-    
-    # Convert formatted data to DataFrame
-    df = pd.DataFrame(formatted_data)
-    
-    # Create a CSV in memory
-    csv_data = df.to_csv(index=False)
-    return BytesIO(csv_data.encode('utf-8'))
 
 def generate_xlsx(data, meeting_date):
     # Preprocess data
@@ -1070,9 +1067,16 @@ def generate_pdf_with_wrapping(data, meeting_date):
         }
     )
 
-def collect_attendance_data_for_range(date1, date2):
-    # Generate the date range
-    date_range = get_date_range(date1, date2)
+def collect_attendance_data_for_range(date1=None,date2=None,meeting_day=None, **kwargs):
+    # def collect_attendance_data_for_range(date1, date2, meeting_day):
+    if meeting_day is None:
+        # Generate the date range for specific day
+        date_range = get_date_range(date1, date2)
+        
+    else: 
+        # Generate the date range for everyday
+        date_range = get_date_range(date1, date2, meeting_day)
+
     print("Date Range:", date_range)
     all_attendance_data = []
 
@@ -1099,21 +1103,43 @@ def collect_attendance_data_for_range(date1, date2):
 
     print("Collected Attendance Data:", all_attendance_data)
     return all_attendance_data
+        
 
-
-def get_date_range(date1, date2):
+def get_date_range(date1=None,date2=None,meeting_day=None, **kwargs):
+    # def get_date_range(date1, date2, meeting_day):
     start_date = datetime.strptime(date1, "%Y-%m-%d")
     end_date = datetime.strptime(date2, "%Y-%m-%d")
+    
+    if meeting_day is None:
+        # Generate all dates in the range for everyday
+        date_range = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d") 
+                    for i in range((end_date - start_date).days + 1)]
+        
+    else:
+        # Map meeting day to Python's weekday numbering (0=Monday, ..., 6=Sunday)
+        day_mapping = {
+            "Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3,
+            "Friday": 4, "Saturday": 5, "Sunday": 6
+        }
+        
+        # Set target day to admin meeting day
+        target_day = day_mapping.get(meeting_day)
+        
+        if target_day is None:
+            raise ValueError(f"Invalid meeting day: {meeting_day}")
 
-    # Generate all dates in the range
-    date_range = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d") 
-                  for i in range((end_date - start_date).days + 1)]
+        # Generate all dates in the range that match the target day
+        date_range = [
+            (start_date + timedelta(days=i)).strftime("%Y-%m-%d") 
+                      for i in range((end_date - start_date).days + 1)
+                      if (start_date + timedelta(days=i)).weekday() == target_day
+                  ]
+    
     return date_range
 
 def preprocess_attendance_data_for_range(attendance_data, date_range):
     # Dictionary to store users and their attendance
     users = {}
-    # serial_number = 1
     for record in attendance_data:
         user_key = f"{record['first_name']} {record['middle_name']} {record['last_name']}"
         if user_key not in users:
@@ -1126,41 +1152,9 @@ def preprocess_attendance_data_for_range(attendance_data, date_range):
             }
         # Mark present for the specific date
         users[user_key][record["meeting_date"]] = "P"
-        # serial_number+=1
 
     # Convert dictionary to list of dictionaries
     return list(users.values())
-
-def generate_csv_with_title(data, meeting_date):
-    # Create a CSV buffer
-    csv_buffer = BytesIO()
-
-    # Define the column order
-    dynamic_dates = sorted({key for record in data for key in record.keys() if key not in ["S/N", "NAME", "STATE CODE", "GENDER"]})
-    columns = ['S/N', 'NAME', 'STATE CODE', 'GENDER'] + dynamic_dates
-
-    # Prepare the title
-    title = (f"NIGERIA INNOVATIVE ENGINEERS SCIENTIST AND APPLIED TECHNOLOGIST (NIESAT)\n"
-             f"COMMUNITY DEVELOPMENT SERVICE GROUP ATTENDANCE for {meeting_date}")
-
-    # Write the CSV
-    writer = csv.writer(csv_buffer, quoting=csv.QUOTE_MINIMAL)
-    # Add the title as the first row(s)
-    writer.writerow([title])  # Title row
-    writer.writerow([])  # Blank row for spacing
-    writer.writerow(columns)  # Header row
-
-    # Add data rows
-    for idx, record in enumerate(data, start=1):
-        row = [idx]  # Start with serial number
-        row += [record.get(key, "N/A") for key in ['NAME', 'STATE CODE', 'GENDER'] + dynamic_dates]
-        writer.writerow(row)
-
-    # Move the buffer position back to the start
-    csv_buffer.seek(0)
-
-    return csv_buffer
-
 
 def generate_pdf_with_wrapping_range(data, meeting_date):
     # Create a BytesIO buffer
@@ -1189,7 +1183,7 @@ def generate_pdf_with_wrapping_range(data, meeting_date):
             record["GENDER"],  # Gender
         ] + [record.get(date, "N/A") for date in dynamic_dates]  # Dynamic dates
         table_data.append(row)
-
+    
     # Create the table
     col_widths = [0.5 * inch, 2.5 * inch, 1.5 * inch, 1 * inch] + [1 * inch] * len(dynamic_dates)
     table = Table(table_data, colWidths=col_widths)
@@ -1225,3 +1219,19 @@ def generate_pdf_with_wrapping_range(data, meeting_date):
             "Content-Disposition": f"attachment; filename=NIESAT_attendance_log_{meeting_date}.pdf"
         }
     )
+
+
+def sort_by_batch_year_and_state_code(data):
+    # Define a custom sorting key
+    def extract_sort_key(item):
+        state_code = item['state_code']
+        # Extract components: batch letter, year, last 4 digits
+        batch_letter = state_code.split('/')[1][-1]  # Last character of the middle section
+        year = int(state_code.split('/')[1][:2])    # First 2 digits of the middle section
+        last_digits = int(state_code.split('/')[-1])  # Last 4 digits of the state code
+        # Return sorting key: Batch (A, B, C), Year (descending), Last digits (ascending)
+        return batch_letter, -year, last_digits
+
+    # Sort the data using the custom key
+    sorted_data = sorted(data, key=extract_sort_key)
+    return sorted_data

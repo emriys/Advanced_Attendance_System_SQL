@@ -227,6 +227,26 @@ def meeting_day_update():
     
     else:
         return """<html>NOT POST METHOD</html>"""
+    
+@forms_bp.route('/allow_attendance', methods=['GET', 'POST'])
+def allow_attendance():
+    if request.method == "POST" :
+        allow_attendance = request.form['allow_attendance'].capitalize()
+        print(allow_attendance)
+        if not allow_attendance:
+            return jsonify(success=False, message="Missing a key field!")
+        
+        # Save received details to database
+        settings = AdminSettings.query.first()
+        settings.allow_attendance = allow_attendance
+        db.session.commit()
+        print(f"Attendance Collection {allow_attendance}!")
+        
+        # Process feedback
+        return jsonify(success=True, message=f"Attendance Collection {allow_attendance}!")
+    
+    else:
+        return """<html>NOT POST METHOD</html>"""
 
 #-------------------FUNCTIONS------------------#
     

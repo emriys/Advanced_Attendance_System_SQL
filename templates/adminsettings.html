@@ -40,6 +40,24 @@
         <h1 class="text-center">Settings</h1>
         <div class="card">
             <div class="card-body">
+                <h5 class="card-title toggle-heading" data-target='allow_form' onclick="toggleForm(this)">Allow Attendance</h5>
+                <form method="POST" class="ajax-form toggle-form hidden" action="/forms/allow_attendance" id="allow_form">
+                    <div class="msg-area"></div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="allow_attendance">Active: </label>
+                        <span id="allow_attendance"></span>
+                        <select class="form-select" id="allow_attendance" name="allow_attendance" required="">
+                            <option value="">Select an option</option>
+                            <option value="enabled">Enable</option>
+                            <option value="disabled">Disable</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary" id="submit" name="submit" type="submit">Update</button>
+                </form>
+
+                <hr>
                 <h5 class="card-title toggle-heading" data-target='attend_time' onclick="toggleForm(this)">Attendance
                     Time</h5>
                 <form method="POST" class="ajax-form toggle-form hidden" action="/forms/attend_time_update"
@@ -67,9 +85,7 @@
                     <button class="btn btn-primary" id="submit" name="submit" type="submit">Update</button>
                 </form>
 
-                <br />
                 <hr>
-
                 <h5 class="card-title toggle-heading" data-target='meeting_day_form' onclick="toggleForm(this)">Meeting Day</h5>
                 <form method="POST" class="ajax-form toggle-form hidden" action="/forms/meeting_day_update" id="meeting_day_form">
                     <div class="msg-area"></div>
@@ -93,7 +109,6 @@
                     <button class="btn btn-primary" id="submit" name="submit" type="submit">Update</button>
                 </form>
 
-                <br />
                 <hr>
                 <h5 class="card-title toggle-heading" data-target='late-fee-form' onclick="toggleForm(this)">Lateness
                     Fine</h5>
@@ -110,7 +125,6 @@
                     <button class="btn btn-primary" id="submit" name="submit" type="submit">Update</button>
                 </form>
 
-                <br />
                 <hr>
                 <h5 class="card-title toggle-heading" data-target="monthly-due-form" onclick="toggleForm(this)">Monthly
                     Due</h5>
@@ -127,7 +141,6 @@
                     <button class="btn btn-primary" id="submit" name="submit" type="submit">Update</button>
                 </form>
 
-                <br />
                 <hr>
                 <h5 class="card-title toggle-heading" data-target="payment-acct-dets" onclick="toggleForm(this)">Payment
                     Account
@@ -158,7 +171,6 @@
                     <button class="btn btn-primary" id="submit" name="submit" type="submit">Update</button>
                 </form>
 
-                <br />
                 <hr>
                 <h5 class="card-title toggle-heading" data-target="change_login_form" onclick="toggleForm(this)">Change
                     username and password</h5>
@@ -183,7 +195,6 @@
                     <button class="btn btn-primary" id="submit" name="submit" type="submit">Update</button>
                 </form>
 
-                <br />
             </div>
         </div>
     </div>
@@ -229,6 +240,7 @@
                         document.getElementById('bank-name-id').placeholder = data.bank_name || "N/A";
                         document.getElementById('username').placeholder = data.admin_username || "N/A";
                         document.getElementById('meeting_day').innerHTML = data.meeting_day || "N/A"
+                        document.getElementById('allow_attendance').innerHTML = data.allow_attendance || "N/A"
                     }
                     else {
                         //console.log("NO DATA!!")

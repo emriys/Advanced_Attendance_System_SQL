@@ -41,7 +41,7 @@
                 <h6>Select a date range:</h6>
                 <label for="date">Start Date: </label>
                 <input type="date" name="date" id="dateInput" class="form-control mb-2" placeholder="Start date"
-                    required="">
+                    required="" onchange="document.getElementById('endDateInput').min = this.value">
                 <label for="endDate">End Date: </label>
                 <input type="date" name="endDate" id="endDateInput" class="form-control mb-2" placeholder="End date"
                     required="">
@@ -50,9 +50,8 @@
             <div class="input-group">
                 <select name="format" class="form-select" id="formatDropdown" required>
                     <option value="" selected>Select File Format</option>
-                    <option value="pdf">PDF (.pdf)</option>
                     <option value="xlsx">Excel (.xlsx)</option>
-                    <option value="csv">CSV (.csv)</option>
+                    <option value="pdf">PDF (.pdf)</option>
                 </select>
                 <button type="submit" class="btn btn-primary" id="download-button">Download</button>
             </div>
@@ -268,8 +267,9 @@
         const today = new Date();
         const formattedDate = today.toISOString().split('T')[0]; // Format as YYYY-MM-DD
 
-        // Set the max attribute of the date input
+        // Set the max attribute of the start and end date inputs
         document.getElementById('dateInput').setAttribute('max', formattedDate);
+        document.getElementById('endDateInput').setAttribute('max', formattedDate);
     </script>
 
 </body>
