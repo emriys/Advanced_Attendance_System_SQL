@@ -92,7 +92,7 @@
 						if (!response.ok) {
 							throw new Error(`Error: ${response.status}`);
 						}
-						console.log("Response status:", response.status);
+						//console.log("Response status:", response.status);
 						return response.json(); // Adjust response handling as needed
 					})
 					.then((data) => {
@@ -125,7 +125,7 @@
 					});
 			}
 			catch (error) {
-				console.error("Error logging in:", error);
+				//console.error("Error logging in:", error);
 
 				// Hide the overlay and show a network error
 				spinner.style.display = "none";

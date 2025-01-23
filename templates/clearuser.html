@@ -102,7 +102,7 @@
                 console.log("All inputted");
             }
 
-            console.log(formData);
+            //console.log(formData);
 
             fetch("{{url_for('routes.clear_user_logs')}}", {
                 method: "POST",
@@ -118,7 +118,7 @@
                     msgArea(data.message);
                 })
                 .catch((error) => {
-                    console.log('Error:', error);
+                    //console.log('Error:', error);
                     msgArea(message="Failed to clear records!");
                     //alert("Failed to clear records!")
                 });

@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const formData = new FormData(form);
 
+        // Proceed with form submission
         try {
             const response = await fetch(form.action, {
             method: 'POST',
@@ -26,7 +27,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 return response.json().then((data) => {
                     if (response.ok && data.success) {
                         if (data.redirect){
-                            window.location.href = data.redirect;
+                            successMsg(data.message || "Success!");
+                            setTimeout(()=> {
+                                window.location.href = data.redirect;
+                            }, 3000);
                         } else {
                             successMsg(data.message || "Success!");
                         }
@@ -36,9 +40,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
         } catch(error) {
-            errorMsg("Failed to process your request. Please try again");
-            console.error("Error: ", error);
+            errorMsg("Failed to process your request. Please try again.", error);
         }
+
     });
 
     function errorMsg(message) {
@@ -64,6 +68,4 @@ document.addEventListener("DOMContentLoaded", () => {
             msgArea.classList.remove("success-shown");
         }, 2000);
     }
-
-
 });

@@ -139,10 +139,6 @@
             form.addEventListener("submit", (event) => {
                 event.preventDefault(); // Prevent default form submission behavior
 
-                console.log(stateCodeInput.value);
-                console.log(amountInput.value);
-                console.log(newStatusInput.value);
-
                 // If amount field not filled, return prompt
                 if (!amountInput.value) {
                     message = "Please run CHECK first.";
@@ -166,7 +162,6 @@
                     .then((response) => {
                         return response.json().then((data) => {
                             if (!response.ok) {
-                                console.log('OKAYYYYYYYYYYY1');
                                 // Display error messages if the response is not ok
                                 message = data.message;
                                 errorMsg(message);
@@ -180,8 +175,6 @@
                     .then((data) => {
                         // On success, let the form submit (if there's further processing needed)
                         if (data.success) {
-                            console.log('OKAYYYYYYYYYYY2');
-                            console.log("Success:", data);
                             message = data.message;
                             successMsg(message);
                             //stateCodeInput.value = ""
@@ -204,9 +197,8 @@
                         }*/
                     })
                     .catch((error) => {
-                        console.log('OKAYYYYYYYYYYY3');
                         // Display any fetch errors
-                        console.error("Error:", error.message);
+                        //console.error("Error:", error.message);
                         alert("Error: Failed to fetch from server.")
                     });
             });
@@ -242,7 +234,7 @@
                     .then((data) => {
                         if (data.success) {
                             // On success, update field with received value
-                            console.log("Success:", data);
+                            //console.log("Success:", data);
                             amountInput.value = parseFloat(data.message);
                         }
                         else {
@@ -252,10 +244,9 @@
 
                     })
                     .catch((error) => {
-                        console.log('TESSSSSSSTTTT3');
                         // Display any fetch errors
                         // Show an error message in the UI
-                        console.error("Error:", error.message);
+                        //console.error("Error:", error.message);
                         alert("Error: Failed to fetch from server.")
                     });
             });//, { once: true }); // Ensure the click event fires only once
@@ -265,7 +256,7 @@
             const reloadTable = () => {
                 // Refresh Requests Table after a delay to allow server to process data.
                 setTimeout(() => {
-                    console.log("Refreshing the Requests Table....");
+                    //console.log("Refreshing the Requests Table....");
                     // Construct the fetch URL
                     const url = `{{url_for('routes.admindash')}}`;
 
@@ -310,7 +301,7 @@
                             }
                         })
                         .catch(error => {
-                            console.error(error);
+                            //console.error(error);
                             alert("An error occurred while fetching the late log requests. Please try again.");
                             return
                         });

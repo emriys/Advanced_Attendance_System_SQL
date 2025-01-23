@@ -13,12 +13,26 @@ forms_bp = Blueprint('forms', __name__)
 
 class MemberRegisterForm(FlaskForm):
     first_name = StringField('First Name',
-                             validators=[DataRequired(),Length(min=2,max=30)
+                             validators=[DataRequired(),Length(min=2,max=30),
+                                         Regexp(
+                                                regex=r'^[A-Za-z]+(-[A-Za-z]+)?$',
+                                                message="First Name must contain only letters"
+                                            )
                                         ])
     middle_name = StringField('Middle Name',
-                              validators=[Length(min=0,max=30)])
-    last_name = StringField('Last Name',
-                            validators=[DataRequired(), Length(min=2,max=30)])
+                              validators=[Length(min=0,max=30),
+                                          Regexp(
+                                                regex=r'^[A-Za-z]+(-[A-Za-z]+)?$',
+                                                message="Middle Name must contain only letters"
+                                            )
+                                          ])
+    last_name = StringField('Surname',
+                            validators=[DataRequired(), Length(min=2,max=30),
+                                        Regexp(
+                                                regex=r'^[A-Za-z]+(-[A-Za-z]+)?$',
+                                                message="Surname must contain only letters"
+                                            )
+                                        ])
     local_gov_area = SelectField('Local Goverment Area',
                                  choices=[('','Select LGA'),
                                           ('ilorin-west','ILORIN WEST'),
@@ -49,7 +63,6 @@ class MemberRegisterForm(FlaskForm):
                                      state_code=statecode
                                      ).first()
         if user:
-            print('Use exists 1')
             raise ValidationError(f"Member with statecode {state_code} already exists")
 
 class SigninForm(FlaskForm):
@@ -62,13 +75,15 @@ class SigninForm(FlaskForm):
                                      message="State code must follow the format: KW/XX/A/XXXX"
                                     )
                                 ])
-        last_name = StringField('Last Name',
+        last_name = StringField('Surname',
                         validators=[DataRequired(), Length(min=2,max=30),
                                     Regexp(
                                      regex=r'^[A-Za-z]+(-[A-Za-z]+)?$',
-                                     message="Must contain only letters"
+                                     message="Surname must contain only letters"
                                 )
                             ])
+        deviceId = StringField('deviceId')
+        
         submit = SubmitField('Sign-In')
 
 #----------------- ADMIN SETTINGS FORMS --------------------
@@ -78,8 +93,8 @@ def change_login():
     if request.method == "POST" :
         username = request.form['username'].lower()
         password = request.form['passwd']
-        print(username)
-        print(password)
+        # print(username)
+        # print(password)
         if not username or not password:
             return jsonify(success=False, message="Missing username or password!")
         
@@ -94,7 +109,7 @@ def change_login():
         settings.admin_password = hashed_password
         
         db.session.commit()
-        print("Login Updated!")
+        # print("Login Updated!")
         
         # Process feedback
         return jsonify(success=True, message="Login details updated successfully!")
@@ -125,7 +140,7 @@ def attend_time_update():
             # print(late_end)
 
         except ValueError as e:
-            print(f"Error parsing time string: {e}")
+            # print(f"Error parsing time string: {e}")
             raise
         
         # Save received info to database
@@ -134,7 +149,7 @@ def attend_time_update():
         settings.late_arrival_start = late_start
         settings.late_arrival_end = late_end
         db.session.commit()
-        print("Time updated!")
+        # print("Time updated!")
     
         # Process feedback
         return jsonify(success=True, message="Time updated successfully!")
@@ -146,7 +161,6 @@ def attend_time_update():
 def late_fee_update():
     if request.method == "POST" :
         late_fee = request.form['late-fee']
-        print(late_fee)
         if not late_fee:
             return jsonify(success=False, message="Missing a key field!")
         
@@ -154,7 +168,6 @@ def late_fee_update():
         settings = AdminSettings.query.first()
         settings.lateness_fine = late_fee
         db.session.commit()
-        print("Lateness Fine updated!")
         
         # Process feedback
         return jsonify(success=True, message="Fee updated successfully!")
@@ -166,7 +179,6 @@ def late_fee_update():
 def due_amount_update():
     if request.method == "POST" :
         due_fee = request.form['due-fee']
-        print(due_fee)
         if not due_fee:
             return jsonify(success=False, message="Missing a key field!")
         
@@ -174,7 +186,7 @@ def due_amount_update():
         settings = AdminSettings.query.first()
         settings.monthly_due = due_fee
         db.session.commit()
-        print("Monthly Due Fee updated!")
+        # print("Monthly Due Fee updated!")
         
         # Process feedback
         return jsonify(success=True, message="Due amount updated successfully!")
@@ -188,9 +200,9 @@ def account_details():
         acct_num = request.form['acct-num']
         acct_name = request.form['acct-name']
         bank_name = request.form['bank-name']
-        print(acct_num)
-        print(acct_name)
-        print(bank_name)
+        # print(acct_num)
+        # print(acct_name)
+        # print(bank_name)
         if not all([acct_num, acct_name, bank_name]):
             return jsonify(success=False, message="Missing a key field!")
         
@@ -200,7 +212,7 @@ def account_details():
         settings.account_number = acct_num
         settings.bank_name = bank_name
         db.session.commit()
-        print("Account details updated!")
+        # print("Account details updated!")
         
         # Process feedback
         return jsonify(success=True, message="Account Details updated successfully!")
@@ -212,7 +224,7 @@ def account_details():
 def meeting_day_update():
     if request.method == "POST" :
         meeting_day = request.form['meeting_day'].capitalize()
-        print(meeting_day)
+        # print(meeting_day)
         if not meeting_day:
             return jsonify(success=False, message="Missing a key field!")
         
@@ -220,7 +232,7 @@ def meeting_day_update():
         settings = AdminSettings.query.first()
         settings.meeting_day = meeting_day
         db.session.commit()
-        print("Meeting Day updated!")
+        # print("Meeting Day updated!")
         
         # Process feedback
         return jsonify(success=True, message="Meeting Day updated successfully!")
@@ -240,7 +252,7 @@ def allow_attendance():
         settings = AdminSettings.query.first()
         settings.allow_attendance = allow_attendance
         db.session.commit()
-        print(f"Attendance Collection {allow_attendance}!")
+        # print(f"Attendance Collection {allow_attendance}!")
         
         # Process feedback
         return jsonify(success=True, message=f"Attendance Collection {allow_attendance}!")

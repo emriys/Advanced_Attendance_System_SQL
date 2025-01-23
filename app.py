@@ -9,12 +9,14 @@ from models import *
 from initializeDatabase import initialize_admin_settings
 from flask import make_response
 from routes import routes
+from flask_cors import CORS
 
 # Setup Flask app
 app = Flask(__name__)
+CORS(app)
 hostname = socket.gethostname()
 IpAddr = socket.gethostbyname(hostname)
-print(IpAddr)
+# print(IpAddr)
 
 # Configure application
 app.secret_key = 'yibambe_wakanda'
@@ -44,7 +46,7 @@ app.register_blueprint(routes)
 @app.before_request
 def refresh_session():
     if request.path.startswith('/admin') and 'admin_logged_in' in session:
-        print(f"{session['admin_logged_in']}: Refreshing admin")
+        # print(f"{session['admin_logged_in']}: Refreshing admin")
         session.modified = True  # Refresh session timeout
 
 
@@ -52,4 +54,4 @@ def refresh_session():
 # ---------------- RUN APPLICATION ---------------- #
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=80, debug=True, threaded=True)
+    app.run(host="0.0.0.0", port=80, debug=False, threaded=True)

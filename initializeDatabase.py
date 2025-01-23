@@ -22,6 +22,7 @@ def initialize_admin_settings():
         # Add and commit the record
         db.session.add(admin_settings)
         db.session.commit()
-        print("AdminSettings table initialized with default values.")
+        # print("AdminSettings table initialized with default values.")
     else:
-        print("AdminSettings table already initialized.")
+        pass
+        # print("AdminSettings table already initialized.")

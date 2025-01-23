@@ -36,7 +36,10 @@
 
             <div>
                 {{ form.middle_name.label }}
-                {{ form.middle_name }}
+                {{ form.middle_name(
+                    pattern="[A-Za-z]+(-[A-Za-z]+)?$",
+                    title="Must contain only letters"
+                    ) }}
             </div>
 
             <div>

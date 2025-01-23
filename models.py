@@ -59,3 +59,9 @@ class AdminSettings(db.Model):
     meeting_day = db.Column(db.String(20), nullable=True)
     allow_attendance = db.Column(db.String(20), nullable=True)
     
+class DeviceLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.String(100), nullable=False, unique=True)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.now)

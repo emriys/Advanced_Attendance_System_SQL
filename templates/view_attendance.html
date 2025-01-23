@@ -142,7 +142,7 @@
                 })
                     .then(response => {
                         if (response.ok) {
-                            console.log(response);
+                            //console.log(response);
                             return response.json();
                         }
                         throw new Error("Failed to fetch attendance logs: Server returned an unexpected response.");
@@ -151,7 +151,7 @@
                     .then(data => {
                         // Clear the existing table rows
                         tableBody.innerHTML = "";
-                        console.log(data);
+                        //console.log(data);
 
                         // Populate the table with the fetched data
                         if (data.length > 0) {
@@ -177,7 +177,7 @@
                         }
                     })
                     .catch(error => {
-                        console.error(error);
+                        //console.error(error);
                         alert("An error occurred while fetching the attendance logs. Please try again.");
                     })
                     .finally(() => {
@@ -205,9 +205,6 @@
                 const selectedFormat = formatDropdown.value; // Get selected format
                 const start_date = dateInput.value; // Get selected date
                 const end_date = endDateInput.value;
-                console.log(selectedFormat);
-                console.log(start_date);
-                console.log(end_date);
                 if (selectedFormat && start_date && end_date) {
                     const url = `/export_attendance?format=${selectedFormat}&start_date=${start_date}&end_date=${end_date}`;
                     showSpinner("Getting file...");
@@ -238,7 +235,7 @@
                             document.body.removeChild(link);
                         })
                         .catch(error => {
-                            console.error(error);
+                            //console.error(error);
                             alert("An error occurred while fetching attendance file. Please try again.");
                         })
                         .finally(() => {

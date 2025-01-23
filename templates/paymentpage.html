@@ -81,7 +81,7 @@
             var status_show = document.getElementById("status");
             const response = await fetch("{{ url_for('routes.check_status', statecode=statecode) }}");
             const data = await response.json();
-            console.log(data.status);
+            //console.log(data.status);
             //const status = await response.text();
             //console.log(status);
             
@@ -130,12 +130,13 @@
 
         function copyToClipboard(elementId) {
             const text = document.getElementById(elementId).textContent;
-            console.log(text)
+            //console.log(text)
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(() => {
                     showPopup("Copied ✅");
                 }).catch(err => {
-                    console.error("Failed to copy text: ", err);
+                    alert("Failed to copy text: ", err)
+                    //console.error("Failed to copy text: ", err);
                 });
             }
             else {
@@ -154,7 +155,8 @@
                     //showPopup("Copied: " + text + " \u2713");
                     showPopup("Copied ✅");
                 } catch (err) {
-                    console.error('Fallback error copying text: ', err);
+                    alert('Fallback error copying text: ', err);
+                    //console.error('Fallback error copying text: ', err);
                 }
 
                 // Remove the temporary textarea element

@@ -65,17 +65,10 @@ def register():
                 'local_gov':form.local_gov_area.data.capitalize().strip(),
                 'state_code':form.state_code.data.upper().strip()
             }
-            print(f"'{user_data['first_name']}'")
-            print(f"'{user_data['middle_name']}'")
-            print(f"'{user_data['last_name']}'")
-            print(user_data['gender'])
-            print(user_data['local_gov'])
-            print(user_data['state_code'])
         
             confirm = check_user_reg_exists(user_data=user_data)
             if confirm :
-                print("New User Added 2.")
-                return jsonify({'success':True,"message":'Registration successful'})
+                return jsonify({'success':True,"message":'Registration successful',"redirect":"/signin"})
             else :
                 return jsonify({'success':False,"message":'Server Error: Could not add user'})
         
@@ -98,14 +91,10 @@ def signin():
             early_start = settings.early_arrival_start
             late_start = settings.late_arrival_start
             late_end = settings.late_arrival_end
-            print(early_start)
-            print(late_start)
-            print(late_end)
             
             last_name = form.last_name.data.upper() # Last name
             statecode = form.state_code.data.upper()
-            print(last_name)
-            print(statecode)
+            device_id = form.deviceId.data
             
             confirm_reg = check_user_reg_exists(statecode=statecode, last_name=last_name)
             if not confirm_reg :
@@ -122,9 +111,6 @@ def signin():
                     current_time = datetime.now().time()
                     
                     if late_start <= current_time <= late_end:
-                    # if late_end <= current_time:
-                    # if current_time <= late_start:
-                    # if late_start <= current_time:
                         amount = settings.lateness_fine
                         
                         # Check if user already in late list
@@ -139,14 +125,19 @@ def signin():
                             )
                             db.session.add(new_late_log)
                             db.session.commit()
-                        return payment(statecode)
+                        # Pass deviceId to the payment page
+                        return redirect(url_for('routes.payment', statecode=statecode, device_id=device_id))
+                        # return payment(statecode,device_id)
                     
-                    # elif late_end <= current_time:
                     elif early_start <= current_time < late_start:
                         # Regular sign-in (early sign-in)
                         confirm_attendance = record_attendance(confirm_reg)
             
                         if confirm_attendance:
+                            # Log device in the database
+                            # new_device = DeviceLog(device_id=device_id, timestamp=datetime.utcnow())
+                            # db.session.add(new_device)
+                            # db.session.commit()
                             return render_template("thankyouregister.html")
                         else:
                             return """<h1>Server Error!</h1> <h4><p>Failed to log attendance</p></h4>""", 500
@@ -154,13 +145,18 @@ def signin():
                     else:
                         regErrorMsg = "Sign-in time elapsed or not yet reached!"
                         return jsonify({'success':False,"message":regErrorMsg})
-           
+
     return render_template("signin.html", form=form)
 
 @routes.route('/late/signin', methods=['GET', 'POST'])
 def late_reg():
     if request.method == 'POST':
         statecode = request.form['statecode']
+        
+        # Check if deviceId in session
+        device_id = session.get(f"device_{statecode}")
+        if not device_id:
+            return jsonify({'success': False, 'message': 'Device ID not found.'}), 400
         
         # Check user in database
         user = Users.query.filter_by(state_code=statecode).first()
@@ -177,6 +173,11 @@ def late_reg():
         if confirm_attendance:
             # Remove the user from the LateLog database
             pop_latecomer(statecode)
+            # Log device in the database
+            new_device = DeviceLog(device_id=device_id, timestamp=datetime.utcnow())
+            db.session.add(new_device)
+            db.session.commit()
+            
             return render_template("thankyouregister.html")
         else:
             return """<h1>Server Error!</h1> <h4><p>Failed to log attendance</p></h4>""", 500
@@ -229,9 +230,7 @@ def admindash():
             }
             for log in logs
         ]
-        # print(pending_requests)
 
-        #filter_by(status="Pending").all()
         return jsonify(pending_requests)
     
     # If the request is not an AJAX request
@@ -271,35 +270,23 @@ def attendance_logs():
         # Get the date from the query parameter (default to today's date if not provided)
         meeting_date = request.args.get('start_date')
         meeting_date2 = request.args.get('end_date')
-        print("Received Range: ")
-        print(meeting_date)
-        print(meeting_date2)
         
         # If no date is provided, default to today's date
         if not all([meeting_date, meeting_date2]):
             meeting_date = meeting_date2 = datetime.now().date()
             # Query the attendance logs for the given date and respond to the AJAX request
             attendance_request = get_attendance_data(meeting_date)
-            # print(meeting_date)
         
         if meeting_date == meeting_date2:
             attendance_request = get_attendance_data(meeting_date)
         
         # If a date range is provided, get data across the range
         if meeting_date != meeting_date2:
-            # Get the set meeting day from AdminSettings then collect attendance
-            # settings = AdminSettings.query.first()
-            # meeting_day = settings.meeting_day
-            # print(f"Set Meeting Day: {meeting_day}")
-            # if meeting_day is None:
-            #     return jsonify({"success": False, "message": "No meeting day has been set."}), 200
-            
             attendance_request= collect_attendance_data_for_range(meeting_date, meeting_date2)
             
             # Sort data for easier readability
             # attendance_request = sort_by_batch_year_and_state_code(attendance_data)
         
-        # print(attendance_request)
         if len(attendance_request) <= 0:
             return jsonify({"success": False, "message": "No attendance records found for this date range."}), 200
 
@@ -308,7 +295,6 @@ def attendance_logs():
     # If the request is not an AJAX request, return attendance for the day
     meeting_date = datetime.now().date()
     attendance_today = get_attendance_data(meeting_date)
-    # print(attendance_today)
 
     return render_template('view_attendance.html', attendance_data=attendance_today)
 
@@ -329,16 +315,17 @@ def clearLatelog():
     # action = request.args.get('statecodeSelect')
     if request.method == "POST":
         statecode = request.form["statecode"]
-        print(statecode)
+        # print(statecode)
         if statecode == "All":
             try:
                 db.session.query(LateLog).delete()  # Deletes all rows
                 db.session.commit()  # Commit the transaction
-                print("All LateLog entries have been cleared.")
+                # print("All LateLog entries have been cleared.")
                 return jsonify({"message":"All LateLog entries cleared."}), 200
             except Exception as e:
                 db.session.rollback()  # Roll back in case of an error
-                print(f"An error occurred: {e}")
+                return jsonify({"message":f"An error occurred: {e}"}), 200
+                # print(f"An error occurred: {e}")
         
         elif statecode :
             try:
@@ -352,7 +339,7 @@ def clearLatelog():
                     return jsonify({"message": f"No records found for state code {statecode}."}), 200
             except Exception as e:
                 db.session.rollback()  # Roll back in case of an error
-                print(f"An error occurred: {e}")
+                # print(f"An error occurred: {e}")
                 return jsonify(message="Invalid request."), 400
 
     return render_template("clearLateLog.html")
@@ -368,9 +355,6 @@ def clear_user_logs():
         action = request.form["action"]
         statecode = request.form["statecode"].upper()
         last_name = request.form["last_name"]
-        print(action)
-        print(statecode)
-        print(last_name)
 
         if statecode and last_name:
             try:
@@ -381,7 +365,6 @@ def clear_user_logs():
                 ).first()
                 
                 if not user:
-                    print("User not found")
                     return jsonify({"success":False, "message":"User not found"}), 200
                 
                 elif action =='attendance':
@@ -390,7 +373,6 @@ def clear_user_logs():
                     db.session.commit()
                     
                     if deleted_rows > 0:
-                        print("All Attendance entries have been cleared.")
                         return jsonify({"message":f"All Attendance entries cleared for {statecode}."}), 200
                     else:
                         return jsonify({"message": f"No records found for state code {statecode}."}), 200
@@ -408,7 +390,6 @@ def clear_user_logs():
                     db.session.commit()
                     
                     if deleted_rows > 0  or attd_deleted_rows > 0:
-                        # print("User records deleted from database.")
                         return jsonify({"message":f"All records of {statecode} deleted successfully."}), 200
                     else:
                         return jsonify({"message": f"No records found for state code {statecode}."}), 200
@@ -418,6 +399,47 @@ def clear_user_logs():
                 return jsonify(success=False, message=f"An error occurred: {str(e)}"), 500
 
     return render_template("clearuser.html")
+
+@routes.route('/admin/clear_device_log', methods=['GET', 'POST'])
+@admin_required
+def clearDevicelog():
+    if 'admin_logged_in' not in session:
+        flash("Session expired. Please log in again.", "warning")
+        return redirect(url_for('routes.admin'))
+    
+    # action = request.args.get('statecodeSelect')
+    # if request.method == "POST":
+    #     statecode = request.form["statecode"]
+    #     print(statecode)
+    #     if statecode == "All":
+    try:
+        db.session.query(DeviceLog).delete()  # Deletes all rows
+        db.session.commit()  # Commit the transaction
+        # print("All Device Logs have been cleared.")
+        # return jsonify({"message":"All Device Log entries cleared."}), 200
+    except Exception as e:
+        db.session.rollback()  # Roll back in case of an error
+        return jsonify({"message":f"An error occurred: {e}"}), 200
+        # print(f"An error occurred: {e}")
+                
+    return """<html>Device Log Cleared</html>"""
+        
+    #     elif statecode :
+            # try:
+            #     # Clear specific state code entries
+            #     deleted_rows = LateLog.query.filter_by(state_code=statecode).delete()
+            #     db.session.commit()
+
+            #     if deleted_rows > 0:
+            #         return jsonify({"message": f"LateLogs for state code {statecode} cleared successfully."}), 200
+            #     else:
+            #         return jsonify({"message": f"No records found for state code {statecode}."}), 200
+            # except Exception as e:
+            #     db.session.rollback()  # Roll back in case of an error
+            #     print(f"An error occurred: {e}")
+            #     return jsonify(message="Invalid request."), 400
+
+    # return render_template("clearLateLog.html")
 
 @routes.route('/get_details', methods=['GET'])
 @admin_required
@@ -471,7 +493,12 @@ def update_latecomer():
     return redirect(url_for('routes.admindash'))
 
 @routes.route('/payment/late-signin', methods=['GET', 'POST'])
-def payment(statecode):
+# def payment(statecode,device_id):
+def payment():
+    statecode = request.args.get('statecode')
+    device_id = request.args.get('device_id')  # Get deviceId from query parameters
+    # Add unique deviceId to session
+    session[f"device_{statecode}"] = device_id
     # Check Latecomer
     latecomer = LateLog.query.filter_by(state_code=statecode).first()
     
@@ -536,10 +563,10 @@ def export_attendance():
     format = request.args.get('format')
     meeting_date = request.args.get('start_date')
     meeting_date2 = request.args.get('end_date')
-    print("Received: ")
-    print(format)
-    print(meeting_date)
-    print(meeting_date2)
+    # print("Received: ")
+    # print(format)
+    # print(meeting_date)
+    # print(meeting_date2)
     
     if not all([format, meeting_date, meeting_date2]):
         return jsonify({'error': 'Missing required parameters'}), 400
@@ -550,19 +577,19 @@ def export_attendance():
     # Get the set meeting day from AdminSettings then collect attendance
     settings = AdminSettings.query.first()
     meeting_day = settings.meeting_day
-    print(f"Set Meeting Day 2: {meeting_day}")
+    # print(f"Set Meeting Day 2: {meeting_day}")
     if meeting_day is None:
         return jsonify({"success": False, "message": "No meeting day has been set."}), 200
     
     attendance_data = collect_attendance_data_for_range(meeting_date, meeting_date2, meeting_day)
     # Sort data for easier readability
     attendance_data = sort_by_batch_year_and_state_code(attendance_data)
-    print('Collect')
-    print(attendance_data)
+    # print('Collect')
+    # print(attendance_data)
     date_range = get_date_range(meeting_date, meeting_date2, meeting_day)
     data = preprocess_attendance_data_for_range(attendance_data,date_range)
-    print("Data")
-    print(data)
+    # print("Data")
+    # print(data)
         
     if meeting_date != meeting_date2:
         meeting_date=f"{meeting_date}_to_{meeting_date2}"
@@ -598,13 +625,43 @@ def user_logs():
 def thankyou():
     return render_template('thankyouregister.html')
 
+@routes.route('/validate-device', methods=['POST'])
+def validate_device():
+    data = request.get_json()
+    device_id = data.get('deviceId')
+    latitude = data.get('latitude')
+    longitude = data.get('longitude')
+    # print(f"Device ID: {device_id}")
+    # print(f"Latitude: {latitude}")
+    # print(f"Longitude: {longitude}")
+
+    if not all([device_id, latitude, longitude]):
+        return jsonify({'success': False, 'message': 'Missing required parameters.'}), 400
+
+    # Retrieve admin-configured location (example)
+    # admin_settings = AdminSettings.query.first()
+    # required_latitude = admin_settings.required_latitude
+    # required_longitude = admin_settings.required_longitude
+    # location_tolerance = admin_settings.location_tolerance  # in degrees
+
+    # Verify location
+    # if abs(required_latitude - latitude) > location_tolerance or abs(required_longitude - longitude) > location_tolerance:
+    #     return jsonify({'success': False, 'message': 'Location does not match the required area.'}), 403
+
+    # Check if the device is already logged
+    existing_device = DeviceLog.query.filter_by(device_id=device_id).first()
+    if existing_device:
+        return jsonify({'success': False, 'message': 'Device already used to sign-in today.'}), 403
+
+    return jsonify({'success': True, 'message': 'Validation successful.'})
+
 
 # ---------------- FUNCTIONS ---------------- #
 
 def check_user_reg_exists(user_data=None,statecode=None,last_name=None, **kwargs):
     if statecode and last_name :
-        print(last_name)
-        print(statecode)
+        # print(last_name)
+        # print(statecode)
         try:
             # Query for the user
             user = Users.query.filter_by(
@@ -614,14 +671,14 @@ def check_user_reg_exists(user_data=None,statecode=None,last_name=None, **kwargs
 
             # RETURN RESPONSE
             if not user:
-                print("None")
+                # print("None")
                 return False
             else:
                 return user
 
         except IntegrityError:
             db.session.rollback()  # Rollback the transaction
-            print("IntegrityError: User might already exist. Querying again...")
+            # print("IntegrityError: User might already exist. Querying again...")
             # Re-query the user in case of integrity error, 
             # check again using case-insensitive format
             return Users.query.filter(
@@ -632,12 +689,12 @@ def check_user_reg_exists(user_data=None,statecode=None,last_name=None, **kwargs
     
     if user_data :
         # Normalize input for consistent comparison
-        print(user_data['first_name'])
-        print(user_data['middle_name'])
-        print(user_data['last_name'])
-        print(user_data['gender'])
-        print(user_data['local_gov'])
-        print(user_data['state_code'])
+        # print(user_data['first_name'])
+        # print(user_data['middle_name'])
+        # print(user_data['last_name'])
+        # print(user_data['gender'])
+        # print(user_data['local_gov'])
+        # print(user_data['state_code'])
         try:
             # Query for the user
             new_user = Users.query.filter_by(
@@ -659,12 +716,12 @@ def check_user_reg_exists(user_data=None,statecode=None,last_name=None, **kwargs
                 )
                 db.session.add(new_user)
                 db.session.commit()
-                print("New User Added.")
+                # print("New User Added.")
             return new_user
 
         except IntegrityError:
             db.session.rollback()  # Rollback the transaction
-            print("IntegrityError: User might already exist. Querying again...")
+            # print("IntegrityError: User might already exist. Querying again...")
             # Re-query the user in case of integrity error, 
             # check again using case-insensitive format
             return Users.query.filter(
@@ -674,7 +731,7 @@ def check_user_reg_exists(user_data=None,statecode=None,last_name=None, **kwargs
             ).first()
 
         except Exception as e:
-            print(f"An unexpected error occurred: {str(e)}")
+            # print(f"An unexpected error occurred: {str(e)}")
             db.session.rollback()
             return None
 
@@ -691,7 +748,7 @@ def check_user_attendance_exists(statecode):
     return ""
 
 def record_attendance(user):
-    print(f"Record ID: {user.id}")
+    # print(f"Record ID: {user.id}")
     # Record user attendance for the day
     new_attendance = AttendanceLog(
         user_id=user.id,  # Assuming `user` is an instance of Users
@@ -701,7 +758,7 @@ def record_attendance(user):
     )
     db.session.add(new_attendance)
     db.session.commit()
-    print("User attendance added.")
+    # print("User attendance added.")
     
     return True
     
@@ -726,11 +783,11 @@ def get_client_IP():
     # global client_ip
     if request.headers.getlist("X-Forwarded-For") :
         client_ip = request.headers.getlist("X-Forwarded-For")[0]
-        print(1)
+        # print(1)
         return client_ip
     else :
         client_ip = request.remote_addr
-        print(2)
+        # print(2)
         return client_ip
 
 def pop_latecomer(statecode):
@@ -1077,7 +1134,7 @@ def collect_attendance_data_for_range(date1=None,date2=None,meeting_day=None, **
         # Generate the date range for everyday
         date_range = get_date_range(date1, date2, meeting_day)
 
-    print("Date Range:", date_range)
+    # print("Date Range:", date_range)
     all_attendance_data = []
 
     # Loop through each date and fetch attendance logs
@@ -1101,7 +1158,7 @@ def collect_attendance_data_for_range(date1=None,date2=None,meeting_day=None, **
             except AttributeError as e:
                 print(f"Error processing log: {log}. Error: {e}")
 
-    print("Collected Attendance Data:", all_attendance_data)
+    # print("Collected Attendance Data:", all_attendance_data)
     return all_attendance_data
         
 
@@ -1220,7 +1277,6 @@ def generate_pdf_with_wrapping_range(data, meeting_date):
         }
     )
 
-
 def sort_by_batch_year_and_state_code(data):
     # Define a custom sorting key
     def extract_sort_key(item):
@@ -1235,3 +1291,4 @@ def sort_by_batch_year_and_state_code(data):
     # Sort the data using the custom key
     sorted_data = sorted(data, key=extract_sort_key)
     return sorted_data
+
