@@ -48,7 +48,7 @@ This webapp was built with Flask and Bootstrap.
    `flask db init`
    `flask db migrate -m "Initial migration"`
    `flask db upgrade`
-4. Run the application: `python server.py`
+4. Run the application: `python app.py`
 
 ## Usage
 
@@ -64,4 +64,3 @@ If you would like to contribute to this project, please follow the steps below:
 2. Create a new branch for your feature or bugfix
 3. Make your changes and test thoroughly
 4. Submit a pull request with a descriptive title and detailed description of your changes
-
