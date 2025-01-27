@@ -5,5 +5,24 @@
 # Ignore migration files
 migrations/
 
-# Ignore virtual environment
+# Ignore virtual environment and variables
 venv/
+.env/
+*.env
+
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
