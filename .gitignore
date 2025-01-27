@@ -5,3 +5,5 @@
 # Ignore migration files
 migrations/
 
+# Ignore virtual environment
+venv/
