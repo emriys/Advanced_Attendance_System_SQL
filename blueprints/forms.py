@@ -244,7 +244,7 @@ def meeting_day_update():
 def allow_attendance():
     if request.method == "POST" :
         allow_attendance = request.form['allow_attendance'].capitalize()
-        print(allow_attendance)
+        # print(allow_attendance)
         if not allow_attendance:
             return jsonify(success=False, message="Missing a key field!")
         

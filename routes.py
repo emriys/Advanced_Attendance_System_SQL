@@ -12,7 +12,6 @@ from io import BytesIO
 from fpdf import FPDF
 from flask import make_response
 import xlsxwriter
-import tempfile
 import io
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -153,11 +152,6 @@ def late_reg():
     if request.method == 'POST':
         statecode = request.form['statecode']
         
-        # Check if deviceId in session
-        device_id = session.get(f"device_{statecode}")
-        if not device_id:
-            return jsonify({'success': False, 'message': 'Device ID not found.'}), 400
-        
         # Check user in database
         user = Users.query.filter_by(state_code=statecode).first()
         
@@ -173,10 +167,6 @@ def late_reg():
         if confirm_attendance:
             # Remove the user from the LateLog database
             pop_latecomer(statecode)
-            # Log device in the database
-            new_device = DeviceLog(device_id=device_id, timestamp=datetime.utcnow())
-            db.session.add(new_device)
-            db.session.commit()
             
             return render_template("thankyouregister.html")
         else:
@@ -867,33 +857,6 @@ def preprocess_data(data):
         })
     return formatted_data
 
-def generate_xlsx(data, meeting_date):
-    # Preprocess data
-    formatted_data = preprocess_data(data)
-    
-    # Convert formatted data to DataFrame
-    df = pd.DataFrame(formatted_data)
-    
-    # Create an in-memory buffer to store the Excel file
-    excel_buffer = BytesIO()
-    with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name=f'Attendance - {meeting_date}')
-        
-        # Access the workbook and worksheet objects
-        workbook = writer.book
-        worksheet = writer.sheets[f'Attendance - {meeting_date}']
-        
-        # Calculate dynamic column widths
-        for i, col in enumerate(df.columns):
-            max_length = max(
-                [len(str(value)) for value in df[col]] + [len(str(col))]
-            )  # Include header length
-            worksheet.set_column(i, i, max_length + 2)  # Add padding
-        
-    # Move to the start of the buffer before returning
-    excel_buffer.seek(0)
-    return excel_buffer
-
 def generate_xlsx_range(data, meeting_date):
     # Create an in-memory buffer for the Excel file
     excel_buffer = BytesIO()
@@ -932,130 +895,7 @@ def generate_xlsx_range(data, meeting_date):
     excel_buffer.seek(0)
     return excel_buffer
 
-
-def generate_pdf(data, meeting_date):
-    # Initialize PDF
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    
-    # Title
-    pdf.cell(200, 10, txt=f"Attendance Logs - {meeting_date}", ln=True, align='C')
-
-    # Add table headers
-    pdf.cell(40, 10, txt="First Name", border=1, align='C')
-    pdf.cell(40, 10, txt="Middle Name", border=1, align='C')
-    pdf.cell(40, 10, txt="Last Name", border=1, align='C')
-    pdf.cell(40, 10, txt="State Code", border=1, align='C')
-    pdf.cell(40, 10, txt="Meeting Date", border=1, align='C')
-    pdf.ln()  # Newline after the headers
-
-    # Add each attendance record
-    for record in data:
-        pdf.cell(40, 10, txt=record['first_name'], border=1, align='C')
-        pdf.cell(40, 10, txt=record['middle_name'], border=1, align='C')
-        pdf.cell(40, 10, txt=record['last_name'], border=1, align='C')
-        pdf.cell(40, 10, txt=record['state_code'], border=1, align='C')
-        pdf.cell(40, 10, txt=record['meeting_date'], border=1, align='C')
-        pdf.ln()  # Newline after each record
-    
-    # Create a temporary file with flask then return the temporary file
-    tmp_file = tempfile.NamedTemporaryFile(delete=False)
-    pdf.output(tmp_file.name) # Write PDF to the temporary file
-    tmp_file.seek(0) # Go to the start of the file
-    # For temp_file, send in-memory temporary file
-    return send_file(
-        tmp_file.name,
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name=f"attendance_{meeting_date}.pdf"
-    )
-    return tmp_file
-
-def generate_pdf_with_reportlab(data, meeting_date):
-    
-    # Create a BytesIO buffer to hold the PDF content
-    pdf_buffer = BytesIO()
-
-    # Initialize the ReportLab canvas
-    c = canvas.Canvas(pdf_buffer, pagesize=letter)
-
-    # Title
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(200, 750, f"Attendance Logs - {meeting_date}")
-
-    # Calculate dynamic column widths
-    headers = ["S/N", "NAME", "STATE CODE", "SEX"]
-    column_data = [[str(index), 
-                    f"{record['first_name']} {record['middle_name']} {record['last_name']}", 
-                    record['state_code'], 
-                    record['gender']
-                ] for index, record in enumerate(data, start=1)]
-    
-    column_data.insert(0, headers)  # Include headers in column data for width calculation
-    
-    padding = 10 # Padding for eacg column
-    max_widths = [
-        max(len(str(row[col])) for row in column_data) * 7 + padding  # Estimate width per character
-        for col in range(len(headers))
-    ]
-    
-        # Enforce a minimum width for each column to avoid overcrowding
-    min_widths = [30, 100, 80, 40]
-    column_widths = [max(mw, min_w) for mw, min_w in zip(max_widths, min_widths)]
-    
-    # Calculate x_positions dynamically
-    # x_positions = [sum(max_widths[:i]) + 50 for i in range(len(max_widths))]
-    x_positions = [sum(column_widths[:i]) + 50 for i in range(len(headers))]
-
-    # Draw table headers
-    c.setFont("Helvetica-Bold", 12)
-    y_position = 700
-    for i, header in enumerate(headers):
-        c.drawString(x_positions[i], y_position, header)
-
-    # Draw a line under the headers
-    # c.line(50, y_position - 5, x_positions[-1] + max_widths[-1], y_position - 5)
-    # Draw a line under the headers
-    c.line(50, y_position - 5, x_positions[-1] + column_widths[-1], y_position - 5)
-
-    # Draw Table content
-    c.setFont("Helvetica", 12)
-    y_position -= 30
-    for index, record in enumerate(data, start=1):
-        if y_position < 50:  # Start a new page if space runs out
-            c.showPage()
-            c.setFont("Helvetica", 12)
-            y_position = 750
-
-        # Draw data rows
-        row = [str(index), 
-               f"{record['first_name']} {record['middle_name']} {record['last_name']}", 
-               record['state_code'], 
-               record['gender']]
-        
-        for i, cell in enumerate(row):
-            c.drawString(x_positions[i], y_position, str(cell))
-        
-        y_position -= 20
-
-    # Finalize the PDF
-    c.save()
-
-    # Rewind the buffer to the beginning
-    pdf_buffer.seek(0)
-    
-    # Return the PDF as a response
-    return Response(
-        pdf_buffer,
-        mimetype='application/pdf',
-        headers={
-            "Content-Disposition": f"attachment; filename=NIESAT_attendance_log_{meeting_date}.pdf"
-        }
-    )
-
-def generate_pdf_with_wrapping(data, meeting_date):
+def generate_pdf_with_wrapping_range(data, meeting_date):
     # Create a BytesIO buffer
     pdf_buffer = BytesIO()
 
@@ -1066,32 +906,26 @@ def generate_pdf_with_wrapping(data, meeting_date):
     styles = getSampleStyleSheet()
     normal_style = styles["Normal"]
 
-    # Prepare table data
-    headers = ["S/N", "NAME", "STATE CODE", "SEX"]
+    # Extract dynamic dates from the data
+    dynamic_dates = sorted({key for record in data for key in record.keys() if key not in ["NAME", "STATE CODE", "GENDER"]})
+
+    # Prepare table headers
+    headers = ["S/N", "NAME", "STATE CODE", "SEX"] + dynamic_dates
     table_data = [headers]  # Add headers
 
     # Add data rows
     for index, record in enumerate(data, start=1):
         row = [
-            str(index),
-            Paragraph(f"{record['first_name']} {record['middle_name']} {record['last_name']}", normal_style),
-            record['state_code'],
-            record['gender']
-        ]
+            str(index),  # Serial number
+            Paragraph(record["NAME"], normal_style),  # Name
+            record["STATE CODE"],  # State code
+            record["GENDER"],  # Gender
+        ] + [record.get(date, "N/A") for date in dynamic_dates]  # Dynamic dates
         table_data.append(row)
-        
-    # Add data rows
-    # for index, record in enumerate(data, start=1):
-        # row = [
-        #     str(index),
-        #     Paragraph(f"{record['NAME']}", normal_style),
-        #     record['STATE CODE'],
-        #     record['GENDER'],
-        # ]
-        # table_data.append(row)
-
+    
     # Create the table
-    table = Table(table_data, colWidths=[0.5 * inch, 2.5 * inch, 1.5 * inch, 1 * inch])
+    col_widths = [0.5 * inch, 2.5 * inch, 1.5 * inch, 1 * inch] + [1 * inch] * len(dynamic_dates)
+    table = Table(table_data, colWidths=col_widths)
 
     # Style the table
     table.setStyle(TableStyle([
@@ -1107,7 +941,8 @@ def generate_pdf_with_wrapping(data, meeting_date):
 
     # Build the document
     elements = [
-        Paragraph(f"Attendance Logs - {meeting_date}", styles['Title']),
+        Paragraph(f"""NIGERIA INNOVATIVE ENGINEERS SCIENTIST AND APPLIED TECHNOLOGIST (NIESAT)
+             <br/>COMMUNITY DEVELOPMENT SERVICE GROUP ATTENDANCE for {meeting_date}""", styles['Title']),
         table
     ]
     doc.build(elements)
@@ -1212,70 +1047,6 @@ def preprocess_attendance_data_for_range(attendance_data, date_range):
 
     # Convert dictionary to list of dictionaries
     return list(users.values())
-
-def generate_pdf_with_wrapping_range(data, meeting_date):
-    # Create a BytesIO buffer
-    pdf_buffer = BytesIO()
-
-    # Initialize the document
-    doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
-
-    # Define styles
-    styles = getSampleStyleSheet()
-    normal_style = styles["Normal"]
-
-    # Extract dynamic dates from the data
-    dynamic_dates = sorted({key for record in data for key in record.keys() if key not in ["NAME", "STATE CODE", "GENDER"]})
-
-    # Prepare table headers
-    headers = ["S/N", "NAME", "STATE CODE", "SEX"] + dynamic_dates
-    table_data = [headers]  # Add headers
-
-    # Add data rows
-    for index, record in enumerate(data, start=1):
-        row = [
-            str(index),  # Serial number
-            Paragraph(record["NAME"], normal_style),  # Name
-            record["STATE CODE"],  # State code
-            record["GENDER"],  # Gender
-        ] + [record.get(date, "N/A") for date in dynamic_dates]  # Dynamic dates
-        table_data.append(row)
-    
-    # Create the table
-    col_widths = [0.5 * inch, 2.5 * inch, 1.5 * inch, 1 * inch] + [1 * inch] * len(dynamic_dates)
-    table = Table(table_data, colWidths=col_widths)
-
-    # Style the table
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),  # Header background
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),  # Header text color
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Center align all cells
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Header font
-        ('FONTSIZE', (0, 0), (-1, -1), 10),  # Font size for all cells
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),  # Padding for header row
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),  # Row background
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),  # Grid lines
-    ]))
-
-    # Build the document
-    elements = [
-        Paragraph(f"""NIGERIA INNOVATIVE ENGINEERS SCIENTIST AND APPLIED TECHNOLOGIST (NIESAT)
-             <br/>COMMUNITY DEVELOPMENT SERVICE GROUP ATTENDANCE for {meeting_date}""", styles['Title']),
-        table
-    ]
-    doc.build(elements)
-
-    # Rewind the buffer
-    pdf_buffer.seek(0)
-
-    # Return the PDF as a response
-    return Response(
-        pdf_buffer,
-        mimetype='application/pdf',
-        headers={
-            "Content-Disposition": f"attachment; filename=NIESAT_attendance_log_{meeting_date}.pdf"
-        }
-    )
 
 def sort_by_batch_year_and_state_code(data):
     # Define a custom sorting key

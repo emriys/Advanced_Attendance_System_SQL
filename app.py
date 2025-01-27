@@ -19,7 +19,7 @@ IpAddr = socket.gethostbyname(hostname)
 # print(IpAddr)
 
 # Configure application
-app.secret_key = 'yibambe_wakanda'
+app.secret_key = 'f5ebc8036f89c065bef342e1f9e1c7fca6782c546325071d878d98499d1c16df'
 app.permanent_session_lifetime = timedelta(minutes=5) # Set session timeout
 app.config['SESSION_COOKIE_SECURE'] = False  # Only send cookies over HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access to cookies
