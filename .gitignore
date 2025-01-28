@@ -1,9 +1,9 @@
 # Ignore database files
-*.db
-*.sqlite3
+# *.db
+# *.sqlite3
 
 # Ignore migration files
-migrations/
+# migrations/
 
 # Ignore virtual environment and variables
 venv/
@@ -12,7 +12,7 @@ venv/
 
 # Python
 *.pyc
-__pycache__/
+# __pycache__/
 *.pyo
 *.pyd
 
@@ -26,3 +26,4 @@ Thumbs.db
 
 # Logs
 *.log
+.vercel

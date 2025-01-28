@@ -91,6 +91,9 @@ def signin():
             late_start = settings.late_arrival_start
             late_end = settings.late_arrival_end
             
+            if not all([early_start, late_start, late_end]) :
+                return jsonify({'success':False,"message":'Meeting Time not set.'})
+            
             last_name = form.last_name.data.upper() # Last name
             statecode = form.state_code.data.upper()
             device_id = form.deviceId.data
