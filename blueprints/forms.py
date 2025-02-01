@@ -86,6 +86,16 @@ class SigninForm(FlaskForm):
         
         submit = SubmitField('Sign-In')
 
+class AttendanceForm(FlaskForm):
+    statecode = StringField("Statecode", validators=[DataRequired(),Length(min=2,max=11),
+                                 Regexp(
+                                     regex=r'^[Kk][Ww]/\d{2}[a-cA-C]/\d{4}$',
+                                     message="State code must follow the format: KW/XX/A/XXXX"
+                                    )])
+    start_date = DateField("Start Date", validators=[DataRequired()])
+    end_date = DateField("End Date", validators=[DataRequired()])
+    submit = SubmitField("Search")
+
 #----------------- ADMIN SETTINGS FORMS --------------------
 
 @forms_bp.route('/change_login', methods=['GET', 'POST'])

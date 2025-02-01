@@ -81,9 +81,6 @@
             var status_show = document.getElementById("status");
             const response = await fetch("{{ url_for('routes.check_status', statecode=statecode) }}");
             const data = await response.json();
-            //console.log(data.status);
-            //const status = await response.text();
-            //console.log(status);
             
             if (data.status === "Approved") {
                 status_show.innerHTML = "Approved";
