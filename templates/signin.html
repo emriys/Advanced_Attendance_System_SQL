@@ -53,13 +53,13 @@
 				<p class="error">{{ error }}</p>
 				{% endfor %}
 			</div>
-			
+
 			<div class="button-container">
 				<button class="button" id="button" type="submit">Submit
 					<span id="spinner" class="btnspinner hide"></span>
 				</button>
 			</div>
-			
+
 
 			<p>New Member? <a href="{{ url_for('routes.register') }}">Register</a></p>
 			<p>Already signed in? <a href="{{ url_for('routes.user_logs') }}">Check Attendance History</a></p>
@@ -68,6 +68,9 @@
 
 </body>
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fingerprint.js') }}"></script>
+<script src="{{ url_for('static', filename='js/script_fP.js') }}"></script>
+<script src="{{ url_for('static', filename='js/GeoLocation.js') }}"></script>
 
 
 </html>

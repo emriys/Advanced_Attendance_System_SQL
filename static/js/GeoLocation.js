@@ -28,7 +28,7 @@ async function getUserPermission() {
 }
 
 async function getUserLocation() {
-    return new Promise(async function (resolve) {
+    return new Promise(async function (resolve, reject) {
         if (permitted === true) {
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
@@ -36,11 +36,12 @@ async function getUserLocation() {
                         latitude = position.coords.latitude;
                         longitude = position.coords.longitude;
                         accuracy = position.coords.accuracy;
-                        resolve();
                         // console.log(`Latitude: ${latitude}, Longitude: ${longitude}, Accuracy: ${accuracy}`);
+                        resolve({ latitude, longitude });
                     },
                     (error) => {
                         console.error("Error getting location:", error.message);
+                        reject(error); // Reject on error
                     },
                     {
                         enableHighAccuracy: true, // Improves accuracy using GPS & Wi-Fi
@@ -51,10 +52,12 @@ async function getUserLocation() {
             } else {
                 console.error("Geolocation is not supported by this browser.");
                 alert("Geolocation is not supported by this browser. Please use a different browser.");
+                reject("Geolocation not supported.");
             }
         } else {
             console.error("Location permission declined");
             alert("Location access is required for logging");
+            reject("Permission declined.");
         }
     });
 }

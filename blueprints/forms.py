@@ -83,6 +83,8 @@ class SigninForm(FlaskForm):
                                 )
                             ])
         deviceId = StringField('deviceId')
+        lat = FloatField('lat')
+        lon = FloatField('lon')
         
         submit = SubmitField('Sign-In')
 

@@ -23,17 +23,6 @@ async function checkPersistentStorage() {
 /*=============================*/
 /* 1. Unique Device ID Utility */
 /*=============================*/
-// function generateDeviceID() {
-//     // Use crypto.randomUUID() if available; fallback to a random string
-//     // if (crypto && crypto.randomUUID) {
-//     //     return 'device-' + crypto.randomUUID();
-//     // } else {
-//     return 'device-' + Math.random().toString(36).substr(2, 16);
-//     // }
-// }
-
-
-
 // Load FingerprintJS and generate a unique device ID
 async function generateDeviceID() {
     const fp = await window.FingerprintJS.load();

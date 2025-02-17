@@ -13,7 +13,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const formData = new FormData(form);
 
             if (form.id == "signin") {
+                try {
+                    const deviceId = await getDeviceID();
+                    const { latitude, longitude } = await getUserLocation();
+                    // console.log(deviceId, latitude, longitude);
 
+                    formData.append('deviceId', deviceId);
+                    formData.append('lat', latitude);
+                    formData.append('lon', longitude);
+                } catch (error) {
+                    console.error("Failed to get location or deviceID:", error);
+                }
             }
 
             // Proceed with form submission

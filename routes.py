@@ -99,16 +99,29 @@ def signin():
             late_start = settings.late_arrival_start
             late_end = settings.late_arrival_end
             
-            if not all([early_start, late_start, late_end]) :
+            if not all([early_start, late_start, late_end]):
                 return jsonify({'success':False,"message":'Meeting Time not set.'})
             
             last_name = form.last_name.data.upper() # Last name
             statecode = form.state_code.data.upper()
             device_id = form.deviceId.data
+            latitude = form.lat.data
+            longitude = form.lon.data
+            
+            if not all([last_name, statecode, device_id, latitude, longitude]):
+                return jsonify({'success':False,"message":'Meeting Time not set.'})
+            
+            print("DeviceID: ", device_id)
+            print("Latitude: ", latitude)
+            print("Longitude: ", longitude)
             
             # valid_device = validate_device(device_id)
             # if valid_device != "":
             #     return jsonify({'success':False,"message":valid_device})
+            
+            valid_location = checkLocation(latitude,longitude)
+            if valid_location != "":
+                return jsonify({'success':False,"message":valid_location})
             
             confirm_reg = check_user_reg_exists(statecode=statecode, last_name=last_name)
             if not confirm_reg :
@@ -701,34 +714,6 @@ def getLocation():
     
     return render_template('Tracking_Id.html')
 
-# @routes.route('/validate-device', methods=['POST'])
-def validate_device(device_id):
-    # Check if the device is already logged
-    existing_device = DeviceLog.query.filter_by(device_id=device_id).first()
-    current_time = get_local_time()
-    if existing_device:
-        one_hour_ago = current_time - timedelta(hours=1)
-        
-        # If within last hour and exceeded 5 attempts
-        if existing_device.timestamp >= one_hour_ago and existing_device.request_count >= 5:
-            return "Too many sign-in attempts. Try again later."
-        
-        # Reset if older than 1 hour
-        if existing_device.timestamp < one_hour_ago:
-            existing_device.request_count = 1
-        else:
-            existing_device.request_count += 1
-        
-        existing_device.timestamp = get_local_time() # Update database
-        
-        return "This device has already signed in today."
-    
-    else:
-        # First request for this user
-        # new_device = DeviceLog(device_id=device_id, request_count=1, timestamp=current_time)
-        db.session.add(DeviceLog(device_id=device_id, request_count=1, timestamp=current_time))
-        db.session.commit()
-        return ""
 
 # Route to serve the shared worker file
 @routes.route('/sharedWorker.js')
@@ -1180,3 +1165,55 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     print("User distance to location: ",c * R)
 
     return R * c  # Distance in meters
+
+def checkLocation(user_lat,user_lon):
+    try:
+        print("User_Lat: ", user_lat)
+        print("User_Lon: ", user_lon)
+        
+        if not all ([user_lat, user_lon]):
+            return "No Coordinates received. Check location access"
+            # return jsonify({"success": False, "message":"No Coordinates"})
+        
+        # Meeting location
+        MEETING_LAT = 7.373178394564905
+        MEETING_LON = 3.8677877917500827
+        ALLOWED_RADIUS = 2500  # Allowed radius in meters
+        
+        # Calculate distance from meeting location
+        distance = haversine_distance(user_lat, user_lon, MEETING_LAT, MEETING_LON)
+        if distance <= ALLOWED_RADIUS:
+            return "You are at the meeting!"
+            # return jsonify({"success": "success", "message": "Location Received!", "message2":f"{distance}"})
+        else:
+            return "You are too far from the meeting location!"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+def validate_device(device_id):
+    # Check if the device is already logged
+    existing_device = DeviceLog.query.filter_by(device_id=device_id).first()
+    current_time = get_local_time()
+    if existing_device:
+        one_hour_ago = current_time - timedelta(hours=1)
+        
+        # If within last hour and exceeded 5 attempts
+        if existing_device.timestamp >= one_hour_ago and existing_device.request_count >= 5:
+            return "Too many sign-in attempts. Try again later."
+        
+        # Reset if older than 1 hour
+        if existing_device.timestamp < one_hour_ago:
+            existing_device.request_count = 1
+        else:
+            existing_device.request_count += 1
+        
+        existing_device.timestamp = get_local_time() # Update database
+        
+        return "This device has already signed in today."
+    
+    else:
+        # First request for this user
+        # new_device = DeviceLog(device_id=device_id, request_count=1, timestamp=current_time)
+        db.session.add(DeviceLog(device_id=device_id, request_count=1, timestamp=current_time))
+        db.session.commit()
+        return ""
