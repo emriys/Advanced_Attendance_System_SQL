@@ -55,7 +55,7 @@ class MemberRegisterForm(FlaskForm):
                                 )
                             ])
     submit = SubmitField('Register',
-                         render_kw={'class': 'button', 'type':'submit'})
+                         render_kw={'class': 'button', 'id':'button', 'type':'submit'})
     
     def validate_user(self,first_name,last_name,statecode):
         user = Users.query.filter_by(first_name=first_name,

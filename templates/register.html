@@ -6,6 +6,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% include "base.html" %}
     <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='css/signupstyle.css')}}">
 
 </head>
@@ -77,8 +78,10 @@
                 {% endfor %}
             </div>
 
-            <div>
-                {{ form.submit (class_="button") }}
+            <div class="button-container">
+                <button class="btn btn-primary button" id="button" type="submit">Register
+                    <span id="spinner" class="btnspinner hide"></span>
+                </button>
             </div>
 
             <p>Already a member? <a href="{{ url_for('routes.signin') }}">Mark Attendance</a></p>

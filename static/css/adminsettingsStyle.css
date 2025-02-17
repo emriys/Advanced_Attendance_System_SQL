@@ -107,7 +107,11 @@ h1 {
   margin-left: 75%;
 }
 
-
+.btn-primary:disabled{
+  background-color: #002b5c;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* Sidebar styles */
 .sidebar {
@@ -243,11 +247,6 @@ h1 {
   opacity: 1; /* Fully visible */
   max-height: 500px; /* Set a large enough height to accommodate content */
 }
-
-/* Initially hide the form */
-/* .toggle-form.hidden {
-  display: none;
-} */
 
 /* Cursor pointer for the heading */
 .toggle-heading {

@@ -1,4 +1,4 @@
-from flask import Flask,request,Response,render_template,session,redirect,url_for,jsonify,send_file,flash,Blueprint
+from flask import Flask,request,Response,render_template,session,redirect,url_for,jsonify,send_from_directory,send_file,flash,Blueprint
 from flask_session import Session
 import pandas as pd
 from datetime import datetime,time,timedelta
@@ -13,6 +13,7 @@ from fpdf import FPDF
 from flask import make_response
 import xlsxwriter
 import io
+import pytz
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -39,6 +40,9 @@ def admin_required(f):
 
 # Configure logging
 logging.basicConfig(level=logging.WARNING)  # Logs infos, warnings and errors
+
+# Define time zones
+nigeria_tz = pytz.timezone("Africa/Lagos")  # Nigeria is UTC+1
 
 # ---------------- ROUTES ---------------- #
 
@@ -101,6 +105,10 @@ def signin():
             last_name = form.last_name.data.upper() # Last name
             statecode = form.state_code.data.upper()
             device_id = form.deviceId.data
+            
+            # valid_device = validate_device(device_id)
+            # if valid_device != "":
+            #     return jsonify({'success':False,"message":valid_device})
             
             confirm_reg = check_user_reg_exists(statecode=statecode, last_name=last_name)
             if not confirm_reg :
@@ -651,36 +659,81 @@ def user_logs():
 def thankyou():
     return render_template('thankyouregister.html')
 
-@routes.route('/validate-device', methods=['POST'])
-def validate_device():
-    data = request.get_json()
-    device_id = data.get('deviceId')
-    latitude = data.get('latitude')
-    longitude = data.get('longitude')
-    # print(f"Device ID: {device_id}")
-    # print(f"Latitude: {latitude}")
-    # print(f"Longitude: {longitude}")
+@routes.route('/tracker', methods=["GET", 'POST'])
+def tracker():
+    if request.method == "POST":
+        device_Id = request.form["deviceID"]
+        userIP = request.remote_addr
+        print("Device ID: ", device_Id)
+        print("UserIP: ", userIP)
+        if device_Id != "null":
+            return jsonify({"success": True, "message":"Device Id received"})
+        return jsonify({"success": False, "message":"No Device Id"})
+    return render_template('Tracking_Id.html')
 
-    if not all([device_id, latitude, longitude]):
-        return jsonify({'success': False, 'message': 'Missing required parameters.'}), 400
+@routes.route('/location', methods=["GET", 'POST'])
+def getLocation():
+    try:
+        if request.method == "POST":
+            user_lat = float(request.form["lat"])
+            user_lon = float(request.form["long"])
+            print("Latitude: ", user_lat)
+            print("Longitude: ", user_lon)
+            
+            if not all ([user_lat, user_lon]):
+                return jsonify({"success": False, "message":"No Coordinates"})
+            
+            # Meeting location
+            MEETING_LAT = 7.373178394564905
+            MEETING_LON = 3.8677877917500827
+            ALLOWED_RADIUS = 2500  # Allowed radius in meters
+            
+            # Calculate distance from meeting location
+            distance = haversine_distance(user_lat, user_lon, MEETING_LAT, MEETING_LON)
+            if distance <= ALLOWED_RADIUS:
+                return jsonify({"success": "success", "message": "Location Received!", "message2":f"{distance}"})
+            else:
+                return jsonify({"status": "error", "message": "You are too far from the meeting location!"})
 
-    # Retrieve admin-configured location (example)
-    # admin_settings = AdminSettings.query.first()
-    # required_latitude = admin_settings.required_latitude
-    # required_longitude = admin_settings.required_longitude
-    # location_tolerance = admin_settings.location_tolerance  # in degrees
+            return jsonify({"success": True, "message":"Coordinates Received"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+    
+    return render_template('Tracking_Id.html')
 
-    # Verify location
-    # if abs(required_latitude - latitude) > location_tolerance or abs(required_longitude - longitude) > location_tolerance:
-    #     return jsonify({'success': False, 'message': 'Location does not match the required area.'}), 403
-
+# @routes.route('/validate-device', methods=['POST'])
+def validate_device(device_id):
     # Check if the device is already logged
     existing_device = DeviceLog.query.filter_by(device_id=device_id).first()
+    current_time = get_local_time()
     if existing_device:
-        return jsonify({'success': False, 'message': 'Device already used to sign-in today.'}), 403
+        one_hour_ago = current_time - timedelta(hours=1)
+        
+        # If within last hour and exceeded 5 attempts
+        if existing_device.timestamp >= one_hour_ago and existing_device.request_count >= 5:
+            return "Too many sign-in attempts. Try again later."
+        
+        # Reset if older than 1 hour
+        if existing_device.timestamp < one_hour_ago:
+            existing_device.request_count = 1
+        else:
+            existing_device.request_count += 1
+        
+        existing_device.timestamp = get_local_time() # Update database
+        
+        return "This device has already signed in today."
+    
+    else:
+        # First request for this user
+        # new_device = DeviceLog(device_id=device_id, request_count=1, timestamp=current_time)
+        db.session.add(DeviceLog(device_id=device_id, request_count=1, timestamp=current_time))
+        db.session.commit()
+        return ""
 
-    return jsonify({'success': True, 'message': 'Validation successful.'})
-
+# Route to serve the shared worker file
+@routes.route('/sharedWorker.js')
+def serve_shared_worker():
+    return send_from_directory('static', 'js/sharedWorker.js', mimetype='application/javascript')
 
 # ---------------- FUNCTIONS ---------------- #
 
@@ -854,7 +907,9 @@ def get_attendance_data(meeting_date):
     
     return attendance_data
 
-
+def get_local_time():
+    # Convert from UTC to Nigeria time UTC+1
+    return datetime.now(pytz.utc).astimezone(nigeria_tz).time()
 
 def getSettings():
     # Get Admin Settings
@@ -1110,3 +1165,18 @@ def sort_by_batch_year_and_state_code(data):
     sorted_data = sorted(data, key=extract_sort_key)
     return sorted_data
 
+def haversine_distance(lat1, lon1, lat2, lon2):
+    import math
+    """
+    Calculate the Haversine distance between two geographic points in meters.
+    """
+    R = 6371e3  # Earth radius in meters
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+
+    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    print("User distance to location: ",c * R)
+
+    return R * c  # Distance in meters

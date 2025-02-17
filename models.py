@@ -62,6 +62,5 @@ class AdminSettings(db.Model):
 class DeviceLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     device_id = db.Column(db.String(100), nullable=False, unique=True)
-    latitude = db.Column(db.Float, nullable=True)
-    longitude = db.Column(db.Float, nullable=True)
+    request_count = db.Column(db.Integer, default=1)
     timestamp = db.Column(db.DateTime, default=datetime.now)

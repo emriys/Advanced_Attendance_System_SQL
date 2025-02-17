@@ -12,7 +12,7 @@ from routes import routes
 from flask_cors import CORS
 
 # Setup Flask app
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static")
 CORS(app)
 hostname = socket.gethostname()
 IpAddr = socket.gethostbyname(hostname)
@@ -54,4 +54,5 @@ def refresh_session():
 # ---------------- RUN APPLICATION ---------------- #
 
 if __name__ == "__main__":
-    app.run()
+    # app.run()
+    app.run(host="0.0.0.0", port=5000, ssl_context=("cert.pem", "key.pem"), debug=True, threaded=True)

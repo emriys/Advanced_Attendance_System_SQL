@@ -1,221 +1,313 @@
-document.addEventListener("DOMContentLoaded", () => {
-    // Get the form and its elements
-    const form = document.querySelector(".form");
 
-    form.addEventListener('submit', async(event) => {
-        event.preventDefault();
-
-        const formData = new FormData(form);
-
-        if (form.id == "signin") {
-            let latitude = null;
-            let longitude = null;
-            let accuracy = null;
-            let fingerprint = null;
-            let watchId;
-
-            // Generate or retrieve a unique Device ID
-            async function getOrSetDeviceId() {
-                try {
-                    // Check if ID already logged  for the day in device localStorage
-                    const storedDeviceId = localStorage.getItem("device_id") || getCookie("device_id");
-                    if (storedDeviceId) {
-                        console.log("Stored ID:", storedDeviceId);
-                        return storedDeviceId;  // Return stored device ID if already exists
-                    }
-
-                    // Wait for the FingerprintJS library to load
-                    const fp = await fpPromise;
-            
-                    // Generate the fingerprint and get the result
-                    const result = await fp.get();
-            
-                    // The visitor identifier is available here
-                    const visitorId = result.visitorId || crypto.randomUUID();;
-                    console.log("Visitor ID:", visitorId);
-
-                    // Store in localStorage
-                    localStorage.setItem("device_id", visitorId); 
-            
-                    // Set the device ID in a cookie for persistence in seconds
-                    document.cookie = `device_id=${visitorId}; path=/; max-age=${1 * 24 * 60 * 60}; Secure`;
-            
-                    return visitorId; // Return the visitorId for further use if needed
-                } catch (error) {
-                    console.error("Failed to generate fingerprint:", error);
-                    throw error;
-                }
-            }
-
-            // Function to get a cookie's value by name
-            function getCookie(name) {
-                const nameEQ = name + "=";
-                const ca = document.cookie.split(';');
-                for (let i = 0; i < ca.length; i++) {
-                    let c = ca[i];
-                    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-                    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
-                }
-                return null;
-            }
-
-            // WATCH LOCATION
-            function startRealTimeLocationTracking() {
-                return new Promise((resolve, reject) => {
-                    if (navigator.geolocation) {
-                        watchId = navigator.geolocation.watchPosition(
-                            (position) => {
-                                latitude = position.coords.latitude;
-                                longitude = position.coords.longitude;
-                
-                                console.log("Real-time location:", { latitude, longitude });
-                                console.log("Accuracy (meters):", position.coords.accuracy);
-                
-                                // Optionally, send location to the server in real-time
-                                // updateLocationOnServer(latitude, longitude);
-                                resolve(true);
-                            },
-                            (error) => {
-                                console.error("Error tracking location:", error.message);
-                                alert("Location tracking is required for this functionality.");
-                                reject(false);
-                            },
-                            {
-                                enableHighAccuracy: true,  // Request high accuracy if available
-                                maximumAge: 0,            // Prevent caching of location and cached location usage
-                                timeout: 15000            // Wait up to 15 seconds for location
-                            }
-                        );
-                    } else {
-                        alert("Geolocation is not supported by your browser.");
-                        reject(false);
-                    }
-                });
-            }
-
-            function stopRealTimeLocationTracking() {
-                if (watchId) {
-                    navigator.geolocation.clearWatch(watchId);
-                    console.log("Stopped real-time location tracking.");
-                }
-            }
-
-            // Optionally, send the updated location to the server
-            async function updateLocationOnServer(fingerprint, latitude, longitude) {
-                if (!fingerprint || latitude === null || longitude === null) {
-                        alert("Failed to collect required information. Ensure location access is granted.");
-                        return false;
-                }
-                try {
-                    const response = await fetch('/validate-device', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({fingerprint, latitude, longitude}),
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        console.log("Updated location on the server.");
-                        return true;
-                    } else {
-                        console.error("Failed to update location on the server.");
-                        errorMsg(data.message || "Validation Failed");
-                        return false;
-                    }
-                } catch (error) {
-                    console.error("Error sending location to the server:", error);
-                    return false;
-                }
-            }
-
-            // Execute the sequence: Device ID -> Location -> Validation
-            fingerprint = await getOrSetDeviceId();
-            try {
-                const locationCollected = await startRealTimeLocationTracking();
-                if (locationCollected) {
-                    const isValidated = await updateLocationOnServer(fingerprint, latitude, longitude);
-                    if (!isValidated) {
-                        stopRealTimeLocationTracking();
-                        return;   
-                    } else{
-                        formData.append("deviceId", fingerprint);
-                    }
-                } else {
-                    alert("Failed to collect location. Please try again.")
-                    stopRealTimeLocationTracking();
-                    return;
-                }
-
-            } catch(error){
-                console.error("Error collecting or validating data: ", error);
-                return;
-            }            
+async function requestPersistentStorage() {
+    if (navigator.storage && navigator.storage.persist) {
+        const persisted = await checkPersistentStorage();
+        if (persisted) {
+            // console.log('Storage is already persistent');
+            return;
         }
+        const persistent = await navigator.storage.persist();
+        // console.log(persistent ? 'Storage will not be cleared' : 'Storage might be cleared by the browser');
+    }
+}
+// Call this early when the page loads
+// requestPersistentStorage();
 
-        // Proceed with form submission
-        try {
-            console.log("Trying");
-            stopRealTimeLocationTracking();
-            const response = await fetch(form.action, {
-            method: 'POST',
-            body: formData
-            });
-            // Check content type to handle different responses
-            const contentType = response.headers.get("Content-Type");
-            if (contentType.includes("text/html")) {
-                // For HTML responses, load the new page
-                const html = await response.text().then((html) => {
-                    document.open();
-                    document.write(html);
-                    document.close();
-                });
-            } else if (contentType.includes("application/json")) {
-                // For JSON responses, handle as usual
-                return response.json().then((data) => {
-                    if (response.ok && data.success) {
-                        if (data.redirect){
-                            successMsg(data.message || "Success!");
-                            setTimeout(()=> {
-                                window.location.href = data.redirect;
-                            }, 3000);
-                        } else {
-                            successMsg(data.message || "Success!");
-                        }
-                    }else {
-                        errorMsg(data.message || "An error occured");
-                    }
-                });
-            }
-        } catch(error) {
-            errorMsg("Failed to process your request. Please try again");
-            console.error("Error: ", error);
+async function checkPersistentStorage() {
+    if (navigator.storage && navigator.storage.persisted) {
+        return await navigator.storage.persisted();
+    }
+    return false;
+}
+
+/*=============================*/
+/* 1. Unique Device ID Utility */
+/*=============================*/
+// function generateDeviceID() {
+//     // Use crypto.randomUUID() if available; fallback to a random string
+//     // if (crypto && crypto.randomUUID) {
+//     //     return 'device-' + crypto.randomUUID();
+//     // } else {
+//     return 'device-' + Math.random().toString(36).substr(2, 16);
+//     // }
+// }
+
+
+
+// Load FingerprintJS and generate a unique device ID
+async function generateDeviceID() {
+    const fp = await window.FingerprintJS.load();
+    const result = await fp.get();
+    return result.visitorId; // Persistent device ID
+}
+
+/*=============================*/
+/* 2. Cookie Utility Functions */
+/*=============================*/
+function setCookie(name, value, minutes) {
+    let expires = "";
+    if (minutes) {
+        const date = new Date();
+        date.setTime(date.getTime() + (minutes * 60 * 1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + value + expires + "; path=/";
+}
+
+function getCookie(name) {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let c of ca) {
+        c = c.trim();
+        if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length);
+    }
+    return null;
+}
+
+/*==================================*/
+/* 3. IndexedDB Utility Functions   */
+/*==================================*/
+const DB_NAME = "DeviceDB";
+const DB_VERSION = 1;
+const STORE_NAME = "deviceStore";
+
+function openDB(callback) {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = function (event) {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: "id" });
         }
+    };
 
+    request.onsuccess = function (event) {
+        callback(event.target.result);
+    };
+
+    request.onerror = function (event) {
+        console.error("IndexedDB error:", event.target.error);
+        callback(null);
+    };
+}
+
+function getFromIndexedDB(callback) {
+    openDB((db) => {
+        if (!db) {
+            callback(null);
+            return;
+        }
+        const transaction = db.transaction(STORE_NAME, "readonly");
+        const store = transaction.objectStore(STORE_NAME);
+        const getRequest = store.get("deviceID");
+
+        getRequest.onsuccess = function () {
+            const storedID = getRequest.result ? getRequest.result.value : null;
+            // console.log("Device ID retrieved from IndexedDB:", storedID);
+            callback(storedID);
+        };
+
+        getRequest.onerror = function (error) {
+            console.error("Error retrieving device ID from IndexedDB:", error);
+            callback(null);
+        };
     });
+}
 
-    function errorMsg(message) {
-        const msgArea = document.querySelector(".msg-area");
-        msgArea.innerHTML = message;
-        msgArea.classList.add("error-shown");
+function saveToIndexedDB(deviceID, callback) {
+    openDB((db) => {
+        if (!db) {
+            if (callback) callback(false);
+            return;
+        }
+        const transaction = db.transaction(STORE_NAME, "readwrite");
+        const store = transaction.objectStore(STORE_NAME);
+        const putRequest = store.put({ id: "deviceID", value: deviceID });
 
-        // Hide message after a delay
-        setTimeout(() => {
-            msgArea.innerHTML = "";
-            msgArea.classList.remove("error-shown");
-        }, 2000);
+        putRequest.onsuccess = function () {
+            // console.log("Device ID saved in IndexedDB:", deviceID);
+            if (callback) callback(true);
+        };
+
+        putRequest.onerror = function (error) {
+            console.error("Failed to save device ID in IndexedDB:", error);
+            if (callback) callback(false);
+        };
+    });
+}
+
+/*=============================*/
+/* 4. Window.name Storage Utility */
+/*=============================*/
+function getFromWindowName() {
+    if (window.name && window.name.startsWith("deviceID-")) {
+        return window.name.substring(9);
     }
+    return null;
+}
 
-    function successMsg(message) {
-        const msgArea = document.querySelector(".msg-area");
-        msgArea.innerHTML = message;
-        msgArea.classList.add("success-shown");
+function saveToWindowName(deviceID) {
+    window.name = "deviceID-" + deviceID;
+}
 
-        // Hide message after a delay
-        setTimeout(() => {
-            msgArea.innerHTML = "";
-            msgArea.classList.remove("success-shown");
-        }, 2000);
+/*====================================*/
+/* 5. Cache API Utility Functions */
+/*====================================*/
+const CACHE_NAME = "device-cache";
+
+async function saveToCache(deviceID) {
+    if ('caches' in window) {
+        try {
+            const cache = await caches.open(CACHE_NAME);
+            const response = new Response(deviceID, { headers: { "Content-Type": "text/plain" } });
+            await cache.put("deviceID", response);
+            // console.log("Device ID saved in Cache API:", deviceID);
+        } catch (error) {
+            console.error("Failed to save Device ID in Cache API:", error);
+        }
     }
-    // stopRealTimeLocationTracking();
-});
+}
+
+async function getFromCache() {
+    if ('caches' in window) {
+        try {
+            const cache = await caches.open(CACHE_NAME);
+            const response = await cache.match("deviceID");
+            if (response) {
+                const deviceID = await response.text();
+                // console.log("Device ID retrieved from Cache API:", deviceID);
+                return deviceID;
+            }
+        } catch (error) {
+            console.error("Error retrieving Device ID from Cache API:", error);
+        }
+    }
+    return null;
+}
+
+/*=============================*/
+/* 6. Session Storage Utility */
+/*=============================*/
+function saveToSessionStorage(deviceID) {
+    sessionStorage.setItem("deviceID", deviceID);
+    // console.log("Device ID saved in Session Storage:", deviceID);
+}
+
+function getFromSessionStorage() {
+    const deviceID = sessionStorage.getItem("deviceID");
+    if (deviceID) {
+        // console.log("Device ID retrieved from Session Storage:", deviceID);
+    }
+    return deviceID;
+}
+
+/*=====================================*/
+/* 7. SharedWorker Storage Utility */
+/*=====================================*/
+let sharedWorker;
+if (window.SharedWorker) {
+    // console.log("SharedWorker is supported!");
+    sharedWorker = new SharedWorker("/sharedWorker.js");
+    sharedWorker.port.start();
+
+    sharedWorker.port.postMessage("Hello, worker!");
+
+    sharedWorker.port.onmessage = function (event) {
+        // console.log("Message from SharedWorker:", event.data);
+    };
+
+    sharedWorker.onerror = function (error) {
+        console.error("SharedWorker error:", error);
+    };
+} else {
+    console.error("SharedWorker is NOT supported.");
+}
+
+function saveToSharedWorker(deviceID) {
+    if (sharedWorker) {
+        sharedWorker.port.postMessage({ type: "SAVE_DEVICE_ID", deviceID });
+    }
+}
+
+async function getFromSharedWorker() {
+    return new Promise((resolve) => {
+        if (!sharedWorker) {
+            resolve(null);
+            return;
+        }
+        sharedWorker.port.onmessage = function (event) {
+            resolve(event.data.deviceID || null);
+        };
+        sharedWorker.port.postMessage({ type: "GET_DEVICE_ID" });
+    });
+}
+
+/*==========================================*/
+/* Store Device ID in Multiple Locations */
+/*==========================================*/
+function storeDeviceID(deviceID) {
+    localStorage.setItem("deviceID", deviceID); // Store in localStorage
+    setCookie("deviceID", deviceID, 30); // Store in cookie (expires in 30 minutes)
+    saveToIndexedDB(deviceID);
+    saveToWindowName(deviceID); // Store in Window.name
+    saveToCache(deviceID); // Store in Cache API
+    saveToSessionStorage(deviceID);
+}
+
+/*================================*/
+/* Get or Create the Device ID  */
+/*================================*/
+async function getDeviceID() {
+    return new Promise(async function (resolve) {
+        // Check localStorage or cookie first
+        let deviceID = localStorage.getItem("deviceID") ||
+            getCookie("deviceID") || getFromWindowName() ||
+            await getFromCache() ||
+            getFromSessionStorage();
+
+        if (deviceID) {
+            // console.log("Device ID found in localStorage or cookie or CacheID:", deviceID);
+            resolve(deviceID);
+            return;
+        }
+
+        // Try retrieving from SharedWorker first
+        const sharedID = await generateDeviceID();;
+        if (sharedID) {
+            // console.log("Device ID found in sharedWorker:", sharedID);
+            storeDeviceID(sharedID);
+            resolve(sharedID);
+            return;
+        }
+
+        // Try retrieving from IndexedDB if nothing is returned yet
+        getFromIndexedDB((indexedDBID) => {
+            if (indexedDBID) {
+                // console.log("Using IndexedDB Device ID:", indexedDBID);
+                storeDeviceID(indexedDBID);
+                saveToServiceWorker(indexedDBID);
+                saveToSharedWorker(indexedDBID);
+                resolve(indexedDBID);
+            } else {
+                // Generate a new device ID if not found anywhere
+                let newID = generateDeviceID();
+                // console.log("Generated New Device ID:", newID);
+                storeDeviceID(newID);
+                saveToServiceWorker(newID);
+                saveToSharedWorker(newID);
+                resolve(newID);
+            }
+        });
+    });
+}
+
+async function getPublicIP() {
+    try {
+        const response = await fetch('https://api64.ipify.org?format=json');
+        const data = await response.json();
+        return data.ip;
+    } catch (error) {
+        console.error('Failed to get public IP:', error);
+        return 'Unknown';
+    }
+}
