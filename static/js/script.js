@@ -9,70 +9,67 @@ document.addEventListener("DOMContentLoaded", () => {
         spinner.classList.remove("hide");
         button.disabled = true;
 
-        setTimeout(async () => {
-            const formData = new FormData(form);
+        const formData = new FormData(form);
 
-            if (form.id == "signin") {
-                try {
-                    const deviceId = await getDeviceID();
-                    const { latitude, longitude } = await getUserLocation();
-                    // console.log(deviceId, latitude, longitude);
-
-                    formData.append('deviceId', deviceId);
-                    formData.append('lat', latitude);
-                    formData.append('lon', longitude);
-                } catch (error) {
-                    console.error("Failed to get location or deviceID:", error);
-                }
-            }
-
-            // Proceed with form submission
+        if (form.id == "signin") {
             try {
-                const response = await fetch(form.action, {
-                    method: 'POST',
-                    body: formData
+                const deviceId = await getDeviceID();
+                const { latitude, longitude } = await getUserLocation();
+                // console.log(deviceId, latitude, longitude);
+
+                formData.append('deviceId', deviceId);
+                formData.append('lat', latitude);
+                formData.append('lon', longitude);
+            } catch (error) {
+                console.error("Failed to get location or deviceID:", error);
+            }
+        }
+
+        // Proceed with form submission
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData
+            });
+            // Check content type to handle different responses
+            const contentType = response.headers.get("Content-Type");
+            if (contentType.includes("text/html")) {
+                // For HTML responses, load the new page
+                const html = await response.text().then((html) => {
+                    document.open();
+                    document.write(html);
+                    document.close();
+                    spinner.classList.add("hide");
+                    button.disabled = false;
                 });
-                // Check content type to handle different responses
-                const contentType = response.headers.get("Content-Type");
-                if (contentType.includes("text/html")) {
-                    // For HTML responses, load the new page
-                    const html = await response.text().then((html) => {
-                        document.open();
-                        document.write(html);
-                        document.close();
-                        spinner.classList.add("hide");
-                        button.disabled = false;
-                    });
-                } else if (contentType.includes("application/json")) {
-                    // For JSON responses, handle as usual
-                    return response.json().then((data) => {
-                        if (response.ok && data.success) {
-                            if (data.redirect) {
-                                successMsg(data.message || "Success!");
-                                setTimeout(() => {
-                                    spinner.classList.add("hide");
-                                    button.disabled = false;
-                                    window.location.href = data.redirect;
-                                }, 3000);
-                            } else {
-                                successMsg(data.message || "Success!");
+            } else if (contentType.includes("application/json")) {
+                // For JSON responses, handle as usual
+                return response.json().then((data) => {
+                    if (response.ok && data.success) {
+                        if (data.redirect) {
+                            successMsg(data.message || "Success!");
+                            setTimeout(() => {
                                 spinner.classList.add("hide");
-                                button.disabled = false
-                            }
+                                button.disabled = false;
+                                window.location.href = data.redirect;
+                            }, 3000);
                         } else {
-                            errorMsg(data.message || "An error occured");
+                            successMsg(data.message || "Success!");
                             spinner.classList.add("hide");
                             button.disabled = false
                         }
-                    });
-                }
-            } catch (error) {
-                errorMsg("Failed to process your request. Please try again.", error);
-                spinner.classList.add("hide");
-                button.disabled = false;
+                    } else {
+                        errorMsg(data.message || "An error occured");
+                        spinner.classList.add("hide");
+                        button.disabled = false
+                    }
+                });
             }
-        }, 10000);
-
+        } catch (error) {
+            errorMsg("Failed to process your request. Please try again.", error);
+            spinner.classList.add("hide");
+            button.disabled = false;
+        }
     });
 
     function errorMsg(message) {

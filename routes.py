@@ -99,8 +99,8 @@ def signin():
             late_start = settings.late_arrival_start
             late_end = settings.late_arrival_end
             
-            if not all([early_start, late_start, late_end]):
-                return jsonify({'success':False,"message":'Meeting Time not set.'})
+            # if not all([early_start, late_start, late_end]):
+            #     return jsonify({'success':False,"message":'Meeting Time not set.'})
             
             last_name = form.last_name.data.upper() # Last name
             statecode = form.state_code.data.upper()
@@ -111,9 +111,9 @@ def signin():
             if not all([last_name, statecode, device_id, latitude, longitude]):
                 return jsonify({'success':False,"message":'Meeting Time not set.'})
             
-            print("DeviceID: ", device_id)
-            print("Latitude: ", latitude)
-            print("Longitude: ", longitude)
+            # print("DeviceID: ", device_id)
+            # print("Latitude: ", latitude)
+            # print("Longitude: ", longitude)
             
             # valid_device = validate_device(device_id)
             # if valid_device != "":
@@ -1168,8 +1168,8 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 def checkLocation(user_lat,user_lon):
     try:
-        print("User_Lat: ", user_lat)
-        print("User_Lon: ", user_lon)
+        # print("User_Lat: ", user_lat)
+        # print("User_Lon: ", user_lon)
         
         if not all ([user_lat, user_lon]):
             return "No Coordinates received. Check location access"
