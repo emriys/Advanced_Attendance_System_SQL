@@ -94,10 +94,10 @@ def signin():
             return jsonify({'success':False,'message':'Attendance Function Disabled!'})
         elif request.method == "POST" and form.validate_on_submit():
             # Define attendance time ranges
-            settings = AdminSettings.query.first()
-            early_start = settings.early_arrival_start
-            late_start = settings.late_arrival_start
-            late_end = settings.late_arrival_end
+            # settings = AdminSettings.query.first()
+            # early_start = settings.early_arrival_start
+            # late_start = settings.late_arrival_start
+            # late_end = settings.late_arrival_end
             
             # if not all([early_start, late_start, late_end]):
             #     return jsonify({'success':False,"message":'Meeting Time not set.'})
@@ -109,7 +109,7 @@ def signin():
             longitude = form.lon.data
             
             if not all([last_name, statecode, device_id, latitude, longitude]):
-                return jsonify({'success':False,"message":'Meeting Time not set.'})
+                return jsonify({'success':False,"message":'Incompete details for verification'})
             
             # print("DeviceID: ", device_id)
             # print("Latitude: ", latitude)
