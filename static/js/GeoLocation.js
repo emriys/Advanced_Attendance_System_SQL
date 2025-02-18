@@ -1,5 +1,5 @@
 window.onload = function () {
-    // getUserPermission();
+    getUserPermission();
 }
 let latitude = null;
 let longitude = null;
@@ -120,7 +120,7 @@ async function getAddress(lat, lon) {
 
 async function getLocation(event) {
     event.preventDefault();
-    // await getUserLocation();
+    await getUserLocation();
     await getAddress(latitude, longitude);
     const formData = new FormData;
     formData.append('lat', latitude);
