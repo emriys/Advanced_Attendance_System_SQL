@@ -1,8 +1,8 @@
 window.onload = function () {
-    getUserPermission();
+    // getUserPermission();
 }
-let latitude = null;
-let longitude = null;
+let latitude = 8.4800448;
+let longitude = 4.6738504;
 let permitted = false;
 
 async function getUserPermission() {
@@ -120,7 +120,7 @@ async function getAddress(lat, lon) {
 
 async function getLocation(event) {
     event.preventDefault();
-    await getUserLocation();
+    // await getUserLocation();
     await getAddress(latitude, longitude);
     const formData = new FormData;
     formData.append('lat', latitude);
@@ -137,7 +137,8 @@ async function getLocation(event) {
         })
         .then((data) => {
             msgArea(data.message);
-            document.getElementById("distance").innerHTML = `${data.message2}`;
+            console.log(data.value);
+            document.getElementById("distance").innerHTML = `${data.value} meters`;
         })
         .catch((error) => {
             msgArea('Failed to send location:', error);

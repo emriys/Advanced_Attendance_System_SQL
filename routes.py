@@ -94,13 +94,13 @@ def signin():
             return jsonify({'success':False,'message':'Attendance Function Disabled!'})
         elif request.method == "POST" and form.validate_on_submit():
             # Define attendance time ranges
-            # settings = AdminSettings.query.first()
-            # early_start = settings.early_arrival_start
-            # late_start = settings.late_arrival_start
-            # late_end = settings.late_arrival_end
+            settings = AdminSettings.query.first()
+            early_start = settings.early_arrival_start
+            late_start = settings.late_arrival_start
+            late_end = settings.late_arrival_end
             
-            # if not all([early_start, late_start, late_end]):
-            #     return jsonify({'success':False,"message":'Meeting Time not set.'})
+            if not all([early_start, late_start, late_end]):
+                return jsonify({'success':False,"message":'Meeting Time not set.'})
             
             last_name = form.last_name.data.upper() # Last name
             statecode = form.state_code.data.upper()
@@ -703,10 +703,13 @@ def getLocation():
             
             # Calculate distance from meeting location
             distance = haversine_distance(user_lat, user_lon, MEETING_LAT, MEETING_LON)
+            rounded_distance = round(distance, 2)
+            print(distance)
+            print(rounded_distance)
             if distance <= ALLOWED_RADIUS:
-                return jsonify({"success": "success", "message": "Location Received!", "message2":f"{distance}"})
+                return jsonify({"success": "success", "message": "Location Received!", "value":f"{rounded_distance}"})
             else:
-                return jsonify({"status": "error", "message": "You are too far from the meeting location!"})
+                return jsonify({"status": "error", "message": "You are too far from the meeting location!", "value":f"{rounded_distance}"})
 
             return jsonify({"success": True, "message":"Coordinates Received"})
     except Exception as e:
