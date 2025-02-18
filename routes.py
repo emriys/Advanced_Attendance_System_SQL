@@ -109,7 +109,7 @@ def signin():
             longitude = form.lon.data
             
             if not all([last_name, statecode, device_id, latitude, longitude]):
-                return jsonify({'success':False,"message":'Meeting Time not set.'})
+                return jsonify({'success':False,"message":'Incomplete Details for verification'})
             
             # print("DeviceID: ", device_id)
             # print("Latitude: ", latitude)
