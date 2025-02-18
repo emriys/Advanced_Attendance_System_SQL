@@ -1,8 +1,8 @@
 window.onload = function () {
     // getUserPermission();
 }
-let latitude = 8.4800448;
-let longitude = 4.6738504;
+let latitude = null;
+let longitude = null;
 let permitted = false;
 
 async function getUserPermission() {
