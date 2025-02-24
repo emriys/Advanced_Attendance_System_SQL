@@ -261,7 +261,7 @@ async function getDeviceID() {
         }
 
         // Try retrieving from SharedWorker first
-        const sharedID = await generateDeviceID();;
+        const sharedID = await getFromSharedWorker();
         if (sharedID) {
             // console.log("Device ID found in sharedWorker:", sharedID);
             storeDeviceID(sharedID);

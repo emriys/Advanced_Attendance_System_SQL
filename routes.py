@@ -676,9 +676,9 @@ def thankyou():
 def tracker():
     if request.method == "POST":
         device_Id = request.form["deviceID"]
-        userIP = request.remote_addr
+        # userIP = request.remote_addr
         print("Device ID: ", device_Id)
-        print("UserIP: ", userIP)
+        # print("UserIP: ", userIP)
         if device_Id != "null":
             return jsonify({"success": True, "message":"Device Id received"})
         return jsonify({"success": False, "message":"No Device Id"})

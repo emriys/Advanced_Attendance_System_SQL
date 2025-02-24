@@ -30,7 +30,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/fingerprint.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/script_fP.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/scriptfP.js') }}"></script>
     <script src="{{ url_for('static', filename='js/GeoLocation.js') }}"></script>
     <script>
         //import { getDeviceID } from "{{ url_for('static', filename='js/script_fp2.js') }}";
@@ -38,13 +38,11 @@
             event.preventDefault();
 
             const deviceId = await getDeviceID();
-            //const ipAddress = await getPublicIP();
 
             //console.log("Found Device ID:", deviceId);
 
             const formData = new FormData();
             formData.append('deviceID', deviceId);
-            //formData.append('userIP', ipAddress);
 
             fetch("{{url_for('routes.tracker')}}", {
                 method: "POST",
