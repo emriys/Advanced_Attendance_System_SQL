@@ -704,8 +704,6 @@ def getLocation():
             # Calculate distance from meeting location
             distance = haversine_distance(user_lat, user_lon, MEETING_LAT, MEETING_LON)
             rounded_distance = round(distance, 2)
-            print(distance)
-            print(rounded_distance)
             if distance <= ALLOWED_RADIUS:
                 return jsonify({"success": "success", "message": "Location Received!", "value":f"{rounded_distance}"})
             else:

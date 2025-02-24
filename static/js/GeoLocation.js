@@ -29,36 +29,32 @@ async function getUserPermission() {
 
 async function getUserLocation() {
     return new Promise(async function (resolve, reject) {
-        if (permitted === true) {
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        latitude = position.coords.latitude;
-                        longitude = position.coords.longitude;
-                        accuracy = position.coords.accuracy;
-                        // console.log(`Latitude: ${latitude}, Longitude: ${longitude}, Accuracy: ${accuracy}`);
-                        resolve({ latitude, longitude });
-                    },
-                    (error) => {
-                        console.error("Error getting location:", error.message);
-                        reject(error); // Reject on error
-                    },
-                    {
-                        enableHighAccuracy: true, // Improves accuracy using GPS & Wi-Fi
-                        timeout: 10000, // Max time to wait (10 seconds)
-                        maximumAge: 0, // No cached position
-                    }
-                );
-            } else {
+            if (!navigator.geolocation) {
                 console.error("Geolocation is not supported by this browser.");
                 alert("Geolocation is not supported by this browser. Please use a different browser.");
                 reject("Geolocation not supported.");
+                return;
             }
-        } else {
-            console.error("Location permission declined");
-            alert("Location access is required for logging");
-            reject("Permission declined.");
-        }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    latitude = position.coords.latitude;
+                    longitude = position.coords.longitude;
+                    accuracy = position.coords.accuracy;
+                    // console.log(`Latitude: ${latitude}, Longitude: ${longitude}, Accuracy: ${accuracy}`);
+                    resolve({ latitude, longitude });
+                },
+                (error) => {
+                    console.error("Error getting location:", error.message);
+                    alert("Location access is required for logging. Please enable location in your browser settings.");
+                    reject(error); // Reject on error
+                },
+                {
+                    enableHighAccuracy: true, // Improves accuracy using GPS & Wi-Fi
+                    timeout: 10000, // Max time to wait (10 seconds)
+                    maximumAge: 0, // No cached position
+                }
+            );
     });
 }
 
@@ -128,7 +124,8 @@ async function getLocation(event) {
 
     fetch("/location", {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: { "Accept": "application/json" }
     })
         .then((response) => {
             if (response.ok) {
@@ -137,7 +134,6 @@ async function getLocation(event) {
         })
         .then((data) => {
             msgArea(data.message);
-            console.log(data.value);
             document.getElementById("distance").innerHTML = `${data.value} meters`;
         })
         .catch((error) => {
